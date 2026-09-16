@@ -1,6 +1,6 @@
 # ==========================================
 # functions.py
-# Звук, ASCII, логика, вспомогательные функции
+# Звук, ASCII, общие функции, локации, подвал
 # ==========================================
 
 import random
@@ -11,7 +11,7 @@ import struct
 import ctypes
 
 # ==========================================
-# ПУТИ И ГЛОБАЛЬНОЕ СОСТОЯНИЕ
+# ЗВУК
 # ==========================================
 
 SOUND_DIR = r"C:\Users\cl\Desktop\soundds"
@@ -19,52 +19,12 @@ SOUND_TYPING = os.path.join(SOUND_DIR, "typing.wav")
 SOUND_ERROR  = os.path.join(SOUND_DIR, "error.wav")
 SOUND_LOSE   = os.path.join(SOUND_DIR, "lose.wav")
 
-# -------- игровые переменные --------
-inventory = []
-hp = random.randint(90, 130)
-max_hp = hp
-gold = random.randint(80, 200)
-xp = 0
-level = 1
-day = 1
-
-castle_found = False
-wolf_friend = False
-troll_defeated = False
-witch_met = False
-dragon_defeated = False
-undead_defeated = False
-fairy_friend = False
-unicorn_friend = False
-princess_saved = False
-
-strange_key = False
-escape_ready = False
-
-items_prices = {
-    "Еда": 10, "Меч": 50, "Броня": 100, "Зелье лечения": 30,
-    "Амулет": 40, "Факел": 5, "Верёвка": 15, "Карта": 25,
-    "Лук": 60, "Стрелы": 20, "Щит": 80, "Шлем": 70,
-    "Сапоги": 45, "Плащ": 55, "Кольцо": 90, "Свиток": 35,
-    "Книга": 65, "Кристалл": 150, "Жемчужина": 250,
-    "Зелье силы": 60, "Зелье скорости": 70, "Антидот": 40,
-    "Странный ключ": 9999,
-    "ты бомж": 1,
-    "ШКОЛА": 99999,
-    "100 ручек": 100,
-    "Рыцарский меч": 500,
-    "Королевский амулет": 800,
-    "Магический кристалл": 400,
-    "Драгоценный камень": 300,
-}
-
-# ==========================================
-# ЗВУК
-# ==========================================
-
-print("=== ПРОВЕРКА ЗВУКОВ ===")
-print("Папка:", SOUND_DIR)
-print("Существует:", os.path.isdir(SOUND_DIR))
+try:
+    print("=== ПРОВЕРКА ЗВУКОВ ===")
+    print("Папка:", SOUND_DIR)
+    print("Существует:", os.path.isdir(SOUND_DIR))
+except Exception:
+    pass
 
 
 def _is_pcm_wav(path):
@@ -80,7 +40,6 @@ def _convert_to_pcm_wav(src_path, dst_path):
     try:
         import miniaudio
     except ImportError:
-        print("  [SOUND] Нет модуля miniaudio. Установите: pip install miniaudio")
         return False
     try:
         decoded = miniaudio.decode_file(src_path)
@@ -104,32 +63,30 @@ def _convert_to_pcm_wav(src_path, dst_path):
             fp.write(struct.pack("<I", data_size))
             fp.write(pcm_bytes)
         return True
-    except Exception as e:
-        print("  [SOUND] Ошибка конвертации:", e)
+    except Exception:
         return False
 
 
-for _path in (SOUND_TYPING, SOUND_ERROR, SOUND_LOSE):
-    if not os.path.exists(_path):
-        print("Нет файла:", _path)
-        continue
-    if _is_pcm_wav(_path):
-        print("OK (PCM WAV):", os.path.basename(_path))
-        continue
-    print("Не PCM — конвертирую:", os.path.basename(_path))
-    _tmp = _path + ".pcmtmp"
-    if _convert_to_pcm_wav(_path, _tmp):
-        try:
-            os.replace(_tmp, _path)
-            print("  -> заменён на PCM:", os.path.basename(_path))
-        except Exception as e:
-            print("  -> не удалось заменить:", e)
-    else:
-        if os.path.exists(_tmp):
+try:
+    for _path in (SOUND_TYPING, SOUND_ERROR, SOUND_LOSE):
+        if not os.path.exists(_path):
+            continue
+        if _is_pcm_wav(_path):
+            continue
+        _tmp = _path + ".pcmtmp"
+        if _convert_to_pcm_wav(_path, _tmp):
             try:
-                os.remove(_tmp)
+                os.replace(_tmp, _path)
             except Exception:
                 pass
+        else:
+            if os.path.exists(_tmp):
+                try:
+                    os.remove(_tmp)
+                except Exception:
+                    pass
+except Exception as _e:
+    print("[SOUND] Ошибка при подготовке звуков:", _e)
 
 _SND_FILENAME  = 0x00020000
 _SND_ASYNC     = 0x0001
@@ -141,9 +98,6 @@ try:
     _winmm = ctypes.windll.winmm
 except Exception:
     _winmm = None
-
-print("WinMM доступен:", _winmm is not None)
-print("=======================")
 
 
 def _play(path, loop=False):
@@ -167,307 +121,110 @@ def _stop():
         pass
 
 
-def play_typing_loop():
-    _play(SOUND_TYPING, loop=True)
-
-
-def stop_typing():
-    _stop()
-
-
 def error_sound():
     _play(SOUND_ERROR)
 
 
 def lose_sound():
     _play(SOUND_LOSE)
-    time.sleep(2.5)
+    try:
+        time.sleep(2.5)
+    except Exception:
+        pass
 
 
 def slow_print(text, delay=0.02):
-    play_typing_loop()
+    """text — обязательный аргумент. Проверка на None."""
+    if text is None:
+        text = ""
+    _play(SOUND_TYPING, loop=True)
     for char in text:
         sys.stdout.write(char)
         sys.stdout.flush()
-        time.sleep(delay)
+        try:
+            time.sleep(delay)
+        except Exception:
+            pass
     print()
-    stop_typing()
+    _stop()
 
 
 # ==========================================
-# ASCII-КАРТИНКИ
+# СОСТОЯНИЕ ИГРЫ
 # ==========================================
 
-ASCII_ART = {
-"Развилка": r"""
-         /\
-        /  \
-       /    \
-      /      \
-     /   /\   \
-    /   /  \   \
-   /___/    \___\
-       |    |
-   /\  |    |  /\
-  /  \ |    | /  \
-        РАЗВИЛКА
-""",
-"Болото": r"""
-    ~~~ ~~~ ~~~ ~~~
-  _|_  _|_  _|_  _|_
- |   ||   ||   ||   |
- |___||___||___||___|
-      БОЛОТО
-""",
-"Деревня": r"""
-       /\
-      /  \
-     /____\
-     | [] |
-  ___|____|___
- |_____________|
-    ДЕРЕВНЯ
-""",
-"Лес": r"""
-    /\  /\  /\
-   /  \/  \/  \
-  /   /\  /\   \
- /___/  \/  \___\
- /|\ /|\  /|\ /|\
-        ЛЕС
-""",
-"Горы": r"""
-        /\
-       /  \
-      /    \
-     /  /\  \
-   /__/____\__\
-   |    /\    |
-   |__/____\__|
-      ГОРЫ
-""",
-"Море": r"""
-~~~~~~~~~~~~~~~~~~~~~~~
-  ~~~ ~~~ ~~~ ~~~ ~~~
- ~~~~~~~~ ~~~~~~~~
-      ~~~~~~~~
-        МОРЕ
-""",
-"Замок": r"""
-        |\
-       _|___|_
-      |       |
-      | [] [] |
-      |  ___  |
-      |_|___|_|
-      |_______|
-       ЗАМОК
-""",
-"Пещера": r"""
-    ___________
-   /           \
-  /  o  o   o   \
- |    o    o    |
- |_______________|
-    ПЕЩЕРА
-""",
-"Кладбище": r"""
-    _____   _____
-   |  +  | |  +  |
-   |_____| |_____|
-    КЛАДБИЩЕ
-""",
-"Вулкан": r"""
-      /\
-     /  \
-    / /\ \
-   /_/  \_\
-   |  ^^^ |
-   |______|
-    ВУЛКАН
-""",
-"Руины": r"""
-  _   _   _   _
- | |_| |_| |_| |
- |  _   _   _  |
- |_| |_| |_| |_|
-     РУИНЫ
-""",
-"Шахта": r"""
-  ________________
- |  /|      |\   |
- |/  |______|  \ |
- |_______________|
-     ШАХТА
-""",
-"Корабль": r"""
-        |\
-  ______|___|______
-  \               /
-   \_____________/
-     КОРАБЛЬ
-""",
-"Пиратская пещера": r"""
-   ________________
-  /                \
- |  X  X   X   X   |
- |  X   X   X      |
- |__________________|
-  ПИРАТСКАЯ ПЕЩЕРА
-""",
-"Драконье логово": r"""
-   __________________
-  |   /\        /\   |
-  |  /  \      /  \  |
-  | | () |    | () | |
-  |__\/________\/____|
-    ДРАКОНЬЕ ЛОГОВО
-""",
-"Лес фей": r"""
-   *   .   *   .   *
-  .  *  .  *  .  *  .
- *   .   *   .   *   .
-    ЛЕС ФЕЙ
-""",
-"Долина единорогов": r"""
-     /\   /\
-    /  \_/  \
-   |  o   o  |
-    \  ===  /
-     |_____|
-   ДОЛИНА ЕДИНОРОГОВ
-""",
-"Логово волков": r"""
-   /\/\/\/\/\/\
-  |  o   o   o |
-  |    \ | /   |
-  |_____V______|
-   ЛОГОВО ВОЛКОВ
-""",
-"Заброшенная деревня": r"""
-   /\    /\    /\
-  /  \  /  \  /  \
- | [] || [] || [] |
- |____||____||____|
-  ЗАБРОШЕННАЯ ДЕРЕВНЯ
-""",
-"Охотничий лагерь": r"""
-       /\
-      /  \
-     /____\
-  ___|____|___
- |  костёр   |
- |____________|
-  ОХОТНИЧИЙ ЛАГЕРЬ
-""",
-"Башня": r"""
-     _____
-    |     |
-    | [] |
-    | [] |
-    |_____|
-     БАШНЯ
-""",
-"Сад": r"""
-   @   @   @   @
-  @@@ @@@ @@@ @@@
-   |   |   |   |
-    САД ЗАМКА
-""",
-"Старый дуб": r"""
-      ~~~~~
-    ~~~~~~~~~
-      |||
-      |||
-    СТАРЫЙ ДУБ
-""",
-"Ручей": r"""
-  ~~~~~~~~~~~~
- ~~~ ~~~ ~~~ ~~~
-   РУЧЕЙ
-""",
-"Водопад": r"""
-  ___________
- |  |||||||  |
- |__|||||||__|
-    ~~~~~~~
-    ВОДОПАД
-""",
-"Таверна": r"""
-  ___________
- |  _______  |
- | |  []   | |
- | |_______| |
- |___________|
-   ТАВЕРНА
-""",
-"Рынок": r"""
-  _   _   _   _
- | | | | | | | |
- |_| |_| |_| |_|
-    РЫНОК
-""",
-"Храм": r"""
-       /\
-      /  \
-     / /\ \
-    /_/__\_\
-   |   ++   |
-   |________|
-     ХРАМ
-""",
-"Подземелье": r"""
-===================
-|  []   []   []   |
-|  []   []   []   |
-|_________________|
-    ПОДЗЕМЕЛЬЕ
-""",
-"Подвал": r"""
-  ________________
- |  _   _   _     |
- | |_| |_| |_|    |
- |   тёмный ход   |
- |________________|
-      ПОДВАЛ
-""",
-"Комната": r"""
-  ________________
- |  __    __      |
- | |  |  |  |     |
- | |__|  |__|     |
- |________________|
-     КОМНАТА
-""",
-"Сокровищница": r"""
-  ________________
- |  $  $   $   $  |
- |  $   $   $     |
- |  ___           |
- |_|___|__________|
-    СОКРОВИЩНИЦА
-"""
+inventory = []
+hp = random.randint(90, 130)
+max_hp = hp
+gold = random.randint(80, 200)
+xp = 0
+level = 1
+day = 1
+
+castle_found = False
+wolf_friend = False
+troll_defeated = False
+witch_met = False
+dragon_defeated = False
+undead_defeated = False
+fairy_friend = False
+unicorn_friend = False
+princess_saved = False
+strange_key = False
+escape_ready = False
+
+items_prices = {
+    "Еда": 10, "Меч": 50, "Броня": 100, "Зелье лечения": 30,
+    "Амулет": 40, "Факел": 5, "Верёвка": 15, "Карта": 25,
+    "Лук": 60, "Стрелы": 20, "Щит": 80, "Шлем": 70,
+    "Сапоги": 45, "Плащ": 55, "Кольцо": 90, "Свиток": 35,
+    "Книга": 65, "Кристалл": 150, "Жемчужина": 250,
+    "Зелье силы": 60, "Зелье скорости": 70, "Антидот": 40,
+    "Странный ключ": 9999, "ты бомж": 1, "ШКОЛА": 99999,
+    "100 ручек": 100, "Рыцарский меч": 500,
+    "Королевский амулет": 800, "Магический кристалл": 400,
+    "Драгоценный камень": 300,
 }
 
 
-def show_location_image(location_name):
-    art = ASCII_ART.get(location_name)
-    if art:
-        print(art)
+def reset_state():
+    global inventory, hp, max_hp, gold, xp, level, day
+    global castle_found, wolf_friend, troll_defeated, witch_met
+    global dragon_defeated, undead_defeated, fairy_friend, unicorn_friend
+    global princess_saved, strange_key, escape_ready
+
+    inventory = []
+    hp = random.randint(90, 130)
+    max_hp = hp
+    gold = random.randint(80, 200)
+    xp = 0
+    level = 1
+    day = 1
+    castle_found = False
+    wolf_friend = False
+    troll_defeated = False
+    witch_met = False
+    dragon_defeated = False
+    undead_defeated = False
+    fairy_friend = False
+    unicorn_friend = False
+    princess_saved = False
+    strange_key = False
+    escape_ready = False
 
 
 # ==========================================
-# ИГРОВЫЕ ФУНКЦИИ
+# ИГРОВЫЕ ДЕЙСТВИЯ
 # ==========================================
 
 def show_health_line():
+    global hp, max_hp
     bar_len = 20
     try:
         filled = int((hp / max_hp) * bar_len)
     except Exception:
         filled = 0
-    if filled < 0: filled = 0
-    if filled > bar_len: filled = bar_len
+    filled = max(0, min(filled, bar_len))
     bar = "|" * filled + "." * (bar_len - filled)
     print("")
     print("========= ЗДОРОВЬЕ =========")
@@ -502,7 +259,7 @@ def add_xp(amount):
 
 
 def heal(amount):
-    global hp
+    global hp, max_hp
     hp += amount
     if hp > max_hp:
         hp = max_hp
@@ -520,10 +277,10 @@ def take_damage(amount):
         slow_print("ТЫ УМЕР!")
         slow_print("Уровень: " + str(level) + " | Опыт: " + str(xp) + " | Золото: " + str(gold))
         slow_print("Игра окончена.")
-        sys.exit()
+        raise SystemExit(0)
 
 
-def show_status():
+def show_status(player_name):
     show_health_line()
     slow_print("Уровень: " + str(level) + " | Опыт: " + str(xp) + " | Золото: " + str(gold))
     slow_print("День: " + str(day))
@@ -540,6 +297,12 @@ def show_inventory():
             slow_print(str(i) + " - " + item + " (цена: " + str(price) + ")")
 
 
+def ask_yes_no(prompt):
+    """Читает ответ д/н. Всё, кроме 'д'/'да', считается 'нет'."""
+    ans = input(prompt).strip().lower()
+    return ans in ("д", "да", "y", "yes")
+
+
 def use_item():
     global escape_ready, strange_key
     if len(inventory) == 0:
@@ -549,129 +312,134 @@ def use_item():
     for i, item in enumerate(inventory, 1):
         slow_print(str(i) + " - " + item)
     slow_print(str(len(inventory) + 1) + " - отмена")
-    try:
-        idx = int(input("Твой выбор: "))
-        if idx <= len(inventory):
-            item = inventory[idx - 1]
 
-            if item in ("Еда", "Свежая рыба", "Мёд"):
-                heal(random.randint(10, 25))
-                inventory.remove(item)
-            elif item == "Целебная трава":
-                heal(random.randint(10, 20))
-                inventory.remove(item)
-            elif item == "Целебная вода":
-                heal(random.randint(20, 35))
-                inventory.remove(item)
-            elif item == "Зелье лечения":
-                heal(random.randint(30, 50))
-                inventory.remove(item)
-            elif item == "Зелье силы":
-                add_xp(random.randint(10, 20))
-                inventory.remove(item)
-            elif item == "Зелье скорости":
-                heal(15)
-                add_xp(10)
-                inventory.remove(item)
+    while True:
+        try:
+            idx = int(input("Твой выбор: "))
+        except ValueError:
+            error_sound()
+            slow_print("Введи число!")
+            continue
+        if idx < 1 or idx > len(inventory) + 1:
+            error_sound()
+            slow_print("Введи число от 1 до " + str(len(inventory) + 1))
+            continue
+        break
 
-            elif item in ("Меч", "Старый меч", "Древний меч", "Рыцарский меч"):
-                if item == "Рыцарский меч":
-                    slow_print("Ты сжимаешь Рыцарский меч.")
-                    slow_print("Он сияет золотом. Чувствуешь себя непобедимым.")
-                else:
-                    slow_print("Ты берёшь в руки " + item + " — теперь сильнее в бою!")
-            elif item in ("Броня", "Старая броня"):
-                slow_print("Ты надел " + item + " — теперь защищён!")
-            elif item in ("Амулет", "Амулет удачи", "Болотный амулет"):
-                slow_print("Ты надел " + item + " — удача с тобой!")
-            elif item == "Друг-волк":
-                slow_print("Волк охраняет тебя!")
+    if idx == len(inventory) + 1:
+        slow_print("Отмена.")
+        return
 
-            elif item == "Странный ключ":
-                slow_print("Ключ холодный на ощупь. Он явно от какой-то двери...")
-                slow_print("Найди запертую дверь в одном из подвалов.")
+    item = inventory[idx - 1]
 
-            elif item == "ты бомж":
-                slow_print("Ты бомж. Все смотрят на тебя с жалостью.")
-                slow_print("Но тебе нечего терять — вперёд, к приключениям!")
-
-            elif item == "ШКОЛА":
-                slow_print("Ты достаёшь ШКОЛУ.")
-                slow_print("Директор Инга лично подписывает тебе пропуск от всех проблем.")
-                slow_print("Все контрольные отменены, объяснительные — тоже.")
-                slow_print("Мир трещит по швам...")
-                escape_ready = True
-                strange_key = True
-                slow_print("(Ты готов покинуть иллюзию — иди на развилку)")
-
-            elif item == "100 ручек":
-                slow_print("Ты высыпаешь 100 ручек на пол.")
-                slow_print("Василь бы позавидовал. Теперь писать есть чем.")
-                slow_print("Ты чувствуешь прилив вдохновения (+5 опыта).")
-                add_xp(5)
-                inventory.remove(item)
-
-            elif item == "Книга":
-                slow_print("Ты читаешь книгу.")
-                slow_print("Умнеет. Опыт капает (+3 опыта).")
-                add_xp(3)
-                inventory.remove(item)
-
-            elif item == "Королевский амулет":
-                slow_print("Королевский амулет теплеет.")
-                slow_print("Похоже, сам король следит за тобой.")
-
-            elif item == "Магический кристалл":
-                slow_print("Кристалл светится в твоих руках.")
-                slow_print("Магия наполняет тебя (+10 опыта).")
-                add_xp(10)
-                inventory.remove(item)
-
-            elif item == "Драгоценный камень":
-                slow_print("Драгоценный камень переливается.")
-                slow_print("Красиво. Продать бы...")
-
-            else:
-                slow_print("Ты не знаешь, как использовать " + item)
+    if item in ("Еда", "Свежая рыба", "Мёд"):
+        heal(random.randint(10, 25))
+        inventory.remove(item)
+    elif item == "Целебная трава":
+        heal(random.randint(10, 20))
+        inventory.remove(item)
+    elif item == "Целебная вода":
+        heal(random.randint(20, 35))
+        inventory.remove(item)
+    elif item == "Зелье лечения":
+        heal(random.randint(30, 50))
+        inventory.remove(item)
+    elif item == "Зелье силы":
+        add_xp(random.randint(10, 20))
+        inventory.remove(item)
+    elif item == "Зелье скорости":
+        heal(15)
+        add_xp(10)
+        inventory.remove(item)
+    elif item in ("Меч", "Старый меч", "Древний меч", "Рыцарский меч"):
+        if item == "Рыцарский меч":
+            slow_print("Ты сжимаешь Рыцарский меч.")
+            slow_print("Он сияет золотом. Чувствуешь себя непобедимым.")
         else:
-            slow_print("Отмена.")
-    except ValueError:
-        error_sound()
-        slow_print("Введи число!")
+            slow_print("Ты берёшь в руки " + item + " — теперь сильнее в бою!")
+    elif item in ("Броня", "Старая броня"):
+        slow_print("Ты надел " + item + " — теперь защищён!")
+    elif item in ("Амулет", "Амулет удачи", "Болотный амулет"):
+        slow_print("Ты надел " + item + " — удача с тобой!")
+    elif item == "Друг-волк":
+        slow_print("Волк охраняет тебя!")
+    elif item == "Странный ключ":
+        slow_print("Ключ холодный на ощупь. Он явно от какой-то двери...")
+        slow_print("Найди запертую дверь в одном из подвалов.")
+    elif item == "ты бомж":
+        slow_print("Ты бомж. Все смотрят на тебя с жалостью.")
+        slow_print("Но тебе нечего терять — вперёд, к приключениям!")
+    elif item == "ШКОЛА":
+        slow_print("Ты достаёшь ШКОЛУ.")
+        slow_print("Директор Инга лично подписывает тебе пропуск от всех проблем.")
+        slow_print("Все контрольные отменены, объяснительные — тоже.")
+        slow_print("Мир трещит по швам...")
+        escape_ready = True
+        strange_key = True
+        slow_print("(Ты готов покинуть иллюзию — иди на развилку)")
+    elif item == "100 ручек":
+        slow_print("Ты высыпаешь 100 ручек на пол.")
+        slow_print("Василь бы позавидовал. Теперь писать есть чем.")
+        slow_print("Ты получаешь +5 опыта.")
+        add_xp(5)
+        inventory.remove(item)
+    elif item == "Книга":
+        slow_print("Ты читаешь книгу. +3 опыта.")
+        add_xp(3)
+        inventory.remove(item)
+    elif item == "Королевский амулет":
+        slow_print("Королевский амулет теплеет.")
+    elif item == "Магический кристалл":
+        slow_print("Кристалл светится. +10 опыта.")
+        add_xp(10)
+        inventory.remove(item)
+    elif item == "Драгоценный камень":
+        slow_print("Драгоценный камень переливается.")
+    else:
+        slow_print("Ты не знаешь, как использовать " + item)
 
 
 def shop():
     global gold
+    shop_items = [
+        ("Еда", 10), ("Меч", 50), ("Броня", 100),
+        ("Зелье лечения", 30), ("Зелье силы", 60), ("Зелье скорости", 70),
+        ("Антидот", 40), ("Амулет", 40), ("Факел", 5),
+        ("Верёвка", 15), ("Карта", 25), ("Лук", 60),
+        ("Стрелы", 20), ("Щит", 80), ("Шлем", 70),
+        ("Сапоги", 45), ("Плащ", 55), ("Кольцо", 90),
+        ("Свиток", 35), ("Книга", 65), ("Кристалл", 150)
+    ]
     while True:
         show_health_line()
         slow_print("=== МАГАЗИН ===")
         slow_print("Золото: " + str(gold))
-        shop_items = [
-            ("Еда", 10), ("Меч", 50), ("Броня", 100),
-            ("Зелье лечения", 30), ("Зелье силы", 60), ("Зелье скорости", 70),
-            ("Антидот", 40), ("Амулет", 40), ("Факел", 5),
-            ("Верёвка", 15), ("Карта", 25), ("Лук", 60),
-            ("Стрелы", 20), ("Щит", 80), ("Шлем", 70),
-            ("Сапоги", 45), ("Плащ", 55), ("Кольцо", 90),
-            ("Свиток", 35), ("Книга", 65), ("Кристалл", 150)
-        ]
         for i, (item, price) in enumerate(shop_items, 1):
             slow_print(str(i) + " - " + item + " (" + str(price) + ")")
         slow_print(str(len(shop_items) + 1) + " - выйти")
-        try:
-            idx = int(input("Твой выбор: "))
-            if idx <= len(shop_items):
-                item, price = shop_items[idx - 1]
-                if gold >= price:
-                    gold -= price
-                    add_item(item)
-                else:
-                    error_sound()
-                    slow_print("Недостаточно золота!")
-            else:
-                break
-        except ValueError:
+
+        while True:
+            try:
+                idx = int(input("Твой выбор: "))
+            except ValueError:
+                error_sound()
+                slow_print("Введи число!")
+                continue
+            if idx < 1 or idx > len(shop_items) + 1:
+                error_sound()
+                slow_print("Введи число от 1 до " + str(len(shop_items) + 1))
+                continue
+            break
+
+        if idx == len(shop_items) + 1:
+            break
+        item, price = shop_items[idx - 1]
+        if gold >= price:
+            gold -= price
+            add_item(item)
+        else:
             error_sound()
+            slow_print("Недостаточно золота!")
 
 
 def get_choice(max_choice):
@@ -688,14 +456,58 @@ def get_choice(max_choice):
 
 
 # ==========================================
-# ПОДВАЛ
+# ASCII-КАРТИНКИ
+# ==========================================
+
+ASCII_ART = {
+"Развилка": "\n   РАЗВИЛКА (тропа расходится в три стороны)\n",
+"Болото": "\n   ~~~ БОЛОТО ~~~\n",
+"Деревня": "\n   [деревня]  домики, дым из труб\n",
+"Лес": "\n   /\\/\\/\\ ЛЕС /\\/\\/\\\n",
+"Горы": "\n   /\\ ГОРЫ /\\\n",
+"Море": "\n   ~~~~ МОРЕ ~~~~\n",
+"Замок": "\n   [ЗАМОК]  с башнями\n",
+"Пещера": "\n   (ПЕЩЕРА) тёмный вход\n",
+"Кладбище": "\n   + + КЛАДБИЩЕ + +\n",
+"Вулкан": "\n   /\\ ВУЛКАН /\\  дым\n",
+"Руины": "\n   _ _ РУИНЫ _ _\n",
+"Шахта": "\n   [ШАХТА] вход в гору\n",
+"Корабль": "\n   <> КОРАБЛЬ <>\n",
+"Пиратская пещера": "\n   X X ПИРАТСКАЯ ПЕЩЕРА\n",
+"Драконье логово": "\n   (ДРАКОН) кости, золото\n",
+"Лес фей": "\n   * . * ЛЕС ФЕЙ * . *\n",
+"Долина единорогов": "\n   (ЕДИНОРОГ) радуга\n",
+"Логово волков": "\n   V V ЛОГОВО ВОЛКОВ\n",
+"Заброшенная деревня": "\n   [] [] ЗАБРОШЕННАЯ ДЕРЕВНЯ\n",
+"Охотничий лагерь": "\n   /\ ОХОТНИЧИЙ ЛАГЕРЬ\n",
+"Башня": "\n   |_| БАШНЯ |_|\n",
+"Сад": "\n   @ @ САД @ @\n",
+"Старый дуб": "\n   ~ ДУБ ~\n",
+"Ручей": "\n   ~~ РУЧЕЙ ~~\n",
+"Водопад": "\n   || ВОДОПАД ||\n",
+"Таверна": "\n   [ТАВЕРНА]\n",
+"Рынок": "\n   [РЫНОК]\n",
+"Храм": "\n   /\\ ХРАМ /\\\n",
+"Подвал": "\n   [ПОДВАЛ] темно\n",
+"Комната": "\n   [КОМНАТА]\n",
+"Сокровищница": "\n   $ $ СОКРОВИЩНИЦА $ $\n",
+}
+
+
+def show_location_image(location_name):
+    art = ASCII_ART.get(location_name)
+    if art:
+        print(art)
+
+
+# ==========================================
+# ПОДВАЛ (исправлен баг с slow_print)
 # ==========================================
 
 def explore_basement(place_name):
     global strange_key, escape_ready
     show_location_image("Подвал")
     slow_print("Ты спускаешься в подвал " + place_name + ".")
-    slow_print("Пахнет сыростью и плесенью. Кругом пыль и старые вещи.")
 
     while True:
         show_health_line()
@@ -723,10 +535,8 @@ def explore_basement(place_name):
                     strange_key = True
                     add_item("Странный ключ")
                     slow_print("*** В сундуке лежит СТРАННЫЙ КЛЮЧ! ***")
-                    slow_print("Он холодный, металлический, с гравировкой.")
-                    slow_print("Похоже, он от какой-то особой двери...")
                 else:
-                    slow_print("Ключа тут больше нет — ты уже его забрал.")
+                    slow_print("Ключа тут больше нет.")
             elif roll < 0.5:
                 add_gold(random.randint(50, 200))
             elif roll < 0.7:
@@ -756,10 +566,9 @@ def explore_basement(place_name):
                     add_item("Драгоценный камень")
             elif b == 3:
                 slow_print("В углу — массивная железная дверь.")
-                slow_print("На ней выгравирован странный символ.")
-                slow_print("Замок необычной формы — ни один обычный ключ не подойдёт.")
+                slow_print("Замок необычной формы.")
                 if strange_key:
-                    slow_print()
+                    slow_print()  # ИСПРАВЛЕНО: пустой вызов заменён
                     slow_print("У тебя есть Странный ключ!")
                     slow_print("1 - Попробовать открыть дверь")
                     slow_print("2 - Отойти")
@@ -768,7 +577,6 @@ def explore_basement(place_name):
                         slow_print("Ключ с щелчком вошёл в замок!")
                         slow_print("Дверь медленно открылась...")
                         slow_print("За ней — яркий белый свет.")
-                        slow_print("Что-то ждёт тебя там...")
                 else:
                     slow_print("Нужен необычный ключ.")
             input("Enter...")
