@@ -1,3 +1,36 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import tkinter as tk
 import random
 
@@ -28,6 +61,17 @@ NAME_OPTIONS = [
 ]
 
 
+REPLIES = {
+    "escape":  "Ты обернулся. Ключ лежит на столе. Никто не знает почему.",
+    "savior":  "Королевство ликует. Ты — его новый герой.",
+    "friend":  "Лес шумит листвой. Волк, фея и единорог улыбаются тебе.",
+    "legend":  "Барды уже слагают новые песни о твоих подвигах.",
+    "dungeon_lord": "Глубокие залы признали тебя хозяином.",
+    "peaceful": "Ты просто жил. И этого хватило.",
+    "lose":    "Тьма смыкается. Может быть, в следующий раз повезёт.",
+}
+
+
 class Quest:
     def __init__(self, root):
         self.root = root
@@ -41,6 +85,7 @@ class Quest:
 
         self.player_name = None
         self.player_bonus = None
+        self._typing_job = None
 
         canvas_h = self.screen_h - 260
 
@@ -80,7 +125,37 @@ class Quest:
         self._btn_count = 0
         self.show_name_choice()
 
-    # -------- fullscreen --------
+    # -------- медленная печать --------
+
+    def type_text(self, s, delay=20):
+        if self._typing_job is not None:
+            try:
+                self.root.after_cancel(self._typing_job)
+            except Exception:
+                pass
+            self._typing_job = None
+
+        self.text.config(text="")
+
+        def step(i):
+            if i >= len(s):
+                self._typing_job = None
+                return
+            self.text.config(text=s[:i + 1])
+            self._typing_job = self.root.after(delay, step, i + 1)
+
+        step(0)
+
+    def set_text(self, s):
+        if self._typing_job is not None:
+            try:
+                self.root.after_cancel(self._typing_job)
+            except Exception:
+                pass
+            self._typing_job = None
+        self.text.config(text=s)
+
+    # -------- служебное --------
 
     def toggle_fullscreen(self, event=None):
         try:
@@ -88,9 +163,6 @@ class Quest:
                                  not self.root.attributes("-fullscreen"))
         except Exception:
             pass
-
-    # -------- служебное --------
-
     def refresh(self):
         bar = max(0, min(20, int(f.hp / f.max_hp * 20)))
         hp_bar = "[" + "|" * bar + "." * (20 - bar) + "]"
@@ -101,7 +173,6 @@ class Quest:
                  f"(опыт {f.xp}/{need})")
         inv = ", ".join(f.inventory[-4:]) if f.inventory else "—"
         self.inv_label.config(text="Инвентарь: " + inv)
-
     def clear_buttons(self):
         for w in self.buttons.winfo_children():
             w.destroy()
@@ -124,14 +195,11 @@ class Quest:
         self.buttons.grid_columnconfigure(c, weight=1)
         return b
 
-    def set_text(self, s):
-        self.text.config(text=s)
-
     # -------- выбор имени --------
 
     def show_name_choice(self):
         f.draw_location(self.canvas, "cross")
-        self.set_text("Выбери персонажа — нажми кнопку.")
+        self.type_text("Выбери персонажа — нажми кнопку.")
         self.refresh()
         self.clear_buttons()
 
@@ -165,7 +233,7 @@ class Quest:
         f.reset_state()
         self.apply_bonus(self.player_bonus)
 
-        self.set_text(f"Итак, тебя зовут {self.player_name}.\n{phrase}")
+        self.type_text(f"Итак, тебя зовут {self.player_name}.\n{phrase}")
         self.refresh()
         self.clear_buttons()
         self.make_button("Начать приключение", self.start_game)
@@ -185,17 +253,34 @@ class Quest:
         f.click()
         self.show_crossroads()
 
-    # -------- смерть / конец --------
+    # -------- концовки --------
+
+    def show_ending_screen(self, kind):
+        if kind == "lose":
+            f.draw_location(self.canvas, "lose")
+            f.lose()
+            text = "Ты погиб в лесу..."
+        else:
+            f.draw_location(self.canvas, "win")
+            f.win()
+            text = e.ending_text(kind)
+
+        self.type_text(text)
+        self.clear_buttons()
+        self.make_button("Ответить", lambda: self.show_reply(kind))
+
+    def show_reply(self, kind):
+        f.click()
+        reply = REPLIES.get(kind, "")
+        self.type_text(reply)
+        self.clear_buttons()
+        self.make_button("Играть снова", self.restart)
+        self.make_button("Другой персонаж", self.show_name_choice)
+        self.make_button("Выйти", self.root.destroy)
 
     def check_death(self):
         if f.hp <= 0:
-            f.draw_location(self.canvas, "lose")
-            f.lose()
-            self.set_text("Ты погиб в лесу...")
-            self.clear_buttons()
-            self.make_button("Начать заново", self.restart)
-            self.make_button("Другой персонаж", self.show_name_choice)
-            self.make_button("Выйти", self.root.destroy)
+            self.show_ending_screen("lose")
             return True
         return False
 
@@ -203,13 +288,7 @@ class Quest:
         end = e.check_endings()
         if end is None:
             return False
-        f.draw_location(self.canvas, "win")
-        f.win()
-        self.set_text(e.ending_text(end))
-        self.clear_buttons()
-        self.make_button("Играть снова", self.restart)
-        self.make_button("Другой персонаж", self.show_name_choice)
-        self.make_button("Выйти", self.root.destroy)
+        self.show_ending_screen(end)
         return True
 
     def restart(self):
@@ -223,33 +302,32 @@ class Quest:
 
     def exchange_school(self):
         if "ШКОЛА" not in f.inventory:
-            self.set_text("У тебя нет ШКОЛЫ для обмена.")
+            self.type_text("У тебя нет ШКОЛЫ для обмена.")
             self.clear_buttons()
             self.make_button("Назад", self.show_inventory)
             return
         f.inventory.remove("ШКОЛА")
         f.add_item("10000 объяснительных")
-        self.set_text("Ты обменял ШКОЛУ на 10000 объяснительных!")
+        self.type_text("Ты обменял ШКОЛУ на 10000 объяснительных!")
         self.clear_buttons()
         self.make_button("Назад", self.show_inventory)
         self.refresh()
 
     def recycle_notes(self):
         if "10000 объяснительных" not in f.inventory:
-            self.set_text("Нет объяснительных для сдачи.")
+            self.type_text("Нет объяснительных для сдачи.")
             self.clear_buttons()
             self.make_button("Назад", self.show_inventory)
             return
         if not f.can_reward("recycle"):
-            self.set_text("Макулатурщик сказал: «Больше не принимаю».")
+            self.type_text("Макулатурщик сказал: «Больше не принимаю».")
             self.clear_buttons()
             self.make_button("Назад", self.show_inventory)
             return
         f.mark_reward("recycle")
         f.inventory.remove("10000 объяснительных")
         f.add_gold(100)
-        self.set_text("Ты сдал 10000 объяснительных в макулатуру!\n"
-                      "+100 золота.")
+        self.type_text("Ты сдал 10000 объяснительных в макулатуру!\n+100 золота.")
         self.clear_buttons()
         self.make_button("Назад", self.show_inventory)
         self.refresh()
@@ -258,7 +336,7 @@ class Quest:
 
     def show_crossroads(self):
         f.draw_location(self.canvas, "cross")
-        self.set_text(f"Ты на развилке, {self.player_name}. Куда пойдёшь?")
+        self.type_text(f"Ты на развилке, {self.player_name}. Куда пойдёшь?")
         self.refresh()
         self.clear_buttons()
         self.make_button("Лес", self.show_forest)
@@ -278,7 +356,7 @@ class Quest:
     def show_forest(self):
         f.click()
         f.draw_location(self.canvas, "forest")
-        self.set_text("Тёмный лес. Слышен вой волка.")
+        self.type_text("Тёмный лес. Слышен вой волка.")
         self.clear_buttons()
         self.make_button("В чащу", self.forest_thicket)
         self.make_button("Собрать травы", self.forest_herbs)
@@ -291,13 +369,13 @@ class Quest:
         f.click()
         if not f.wolf_friend:
             f.damage(random.randint(10, 25))
-            self.set_text(f"Волк напал! HP: {f.hp}")
+            self.type_text(f"Волк напал! HP: {f.hp}")
             self.clear_buttons()
             self.make_button("Погладить волка", self.befriend_wolf)
             self.make_button("Убежать", self.show_forest)
         else:
             f.heal(20)
-            self.set_text("Волк рад тебе! +20 HP.")
+            self.type_text("Волк рад тебе! +20 HP.")
             self.clear_buttons()
             self.make_button("Дальше", self.show_forest)
         self.refresh()
@@ -307,7 +385,7 @@ class Quest:
         f.click()
         f.wolf_friend = True
         f.add_item("Друг-волк")
-        self.set_text("Волк стал твоим другом!")
+        self.type_text("Волк стал твоим другом!")
         self.clear_buttons()
         self.make_button("Дальше", self.show_forest)
         self.refresh()
@@ -316,7 +394,7 @@ class Quest:
     def forest_herbs(self):
         f.click()
         if not f.can_reward("herbs"):
-            self.set_text("Здесь больше нечего собирать.")
+            self.type_text("Здесь больше нечего собирать.")
             self.clear_buttons()
             self.make_button("Назад", self.show_forest)
             return
@@ -324,7 +402,7 @@ class Quest:
         f.add_item("Трава")
         f.heal(5)
         f.add_xp(2)
-        self.set_text("Ты собрал травы. +5 HP, +2 опыта.")
+        self.type_text("Ты собрал травы. +5 HP, +2 опыта.")
         self.clear_buttons()
         self.make_button("Ещё", self.forest_herbs)
         self.make_button("Назад", self.show_forest)
@@ -333,14 +411,14 @@ class Quest:
     def forest_stream(self):
         f.click()
         if not f.can_reward("stream"):
-            self.set_text("В ручье больше нет рыбы.")
+            self.type_text("В ручье больше нет рыбы.")
             self.clear_buttons()
             self.make_button("Назад", self.show_forest)
             return
         f.mark_reward("stream")
         f.add_item("Свежая рыба")
         f.heal(10)
-        self.set_text("Ты поймал рыбу. +10 HP.")
+        self.type_text("Ты поймал рыбу. +10 HP.")
         self.clear_buttons()
         self.make_button("Ещё", self.forest_stream)
         self.make_button("Назад", self.show_forest)
@@ -349,13 +427,13 @@ class Quest:
     def forest_oak(self):
         f.click()
         if not f.can_reward("oak"):
-            self.set_text("Дупло пустое.")
+            self.type_text("Дупло пустое.")
             self.clear_buttons()
             self.make_button("Назад", self.show_forest)
             return
         f.mark_reward("oak")
         f.add_gold(random.randint(30, 90))
-        self.set_text("В дупле дуба — золото!")
+        self.type_text("В дупле дуба — золото!")
         self.clear_buttons()
         self.make_button("Назад", self.show_forest)
         self.refresh()
@@ -364,7 +442,7 @@ class Quest:
         f.click()
         f.castle_found = True
         f.add_xp(10)
-        self.set_text("С холма виден замок!")
+        self.type_text("С холма виден замок!")
         self.clear_buttons()
         self.make_button("В деревню", self.show_village)
         self.make_button("Назад", self.show_forest)
@@ -375,7 +453,7 @@ class Quest:
     def show_village(self):
         f.click()
         f.draw_location(self.canvas, "village")
-        self.set_text("Деревня. В центре — замок на холме.")
+        self.type_text("Деревня. В центре — замок на холме.")
         self.clear_buttons()
         self.make_button("К замку", self.show_castle)
         self.make_button("К троллю", self.fight_troll)
@@ -387,15 +465,15 @@ class Quest:
     def fight_troll(self):
         f.click()
         if f.troll_defeated:
-            self.set_text("Тролль уже побеждён.")
+            self.type_text("Тролль уже побеждён.")
         elif random.random() < 0.6:
             f.add_gold(150)
             f.troll_defeated = True
             f.add_xp(40)
-            self.set_text("Ты победил тролля! +150 золота.")
+            self.type_text("Ты победил тролля! +150 золота.")
         else:
             f.damage(40)
-            self.set_text("Тролль ранил тебя! -40 HP.")
+            self.type_text("Тролль ранил тебя! -40 HP.")
         self.clear_buttons()
         self.make_button("Назад", self.show_village)
         self.refresh()
@@ -405,7 +483,7 @@ class Quest:
     def smithy(self):
         f.click()
         if not f.can_reward("smithy"):
-            self.set_text("Кузнец больше не кует для тебя.")
+            self.type_text("Кузнец больше не кует для тебя.")
             self.clear_buttons()
             self.make_button("Назад", self.show_village)
             return
@@ -413,9 +491,9 @@ class Quest:
             f.gold -= 100
             f.mark_reward("smithy")
             f.add_item("Меч")
-            self.set_text("Кузнец дал тебе меч. -100 золота.")
+            self.type_text("Кузнец дал тебе меч. -100 золота.")
         else:
-            self.set_text("Нужно 100 золота.")
+            self.type_text("Нужно 100 золота.")
         self.clear_buttons()
         self.make_button("Назад", self.show_village)
         self.refresh()
@@ -424,7 +502,7 @@ class Quest:
         f.click()
         f.heal(30)
         f.day += 1
-        self.set_text("Ты отдохнул. +30 HP, новый день.")
+        self.type_text("Ты отдохнул. +30 HP, новый день.")
         self.clear_buttons()
         self.make_button("Назад", self.show_village)
         self.refresh()
@@ -433,14 +511,14 @@ class Quest:
     def temple(self):
         f.click()
         if not f.can_reward("temple"):
-            self.set_text("Храм больше не даёт благословения.")
+            self.type_text("Храм больше не даёт благословения.")
             self.clear_buttons()
             self.make_button("Назад", self.show_village)
             return
         f.mark_reward("temple")
         f.heal(20)
         f.add_item("Святая вода")
-        self.set_text("Ты помолился. +20 HP, святая вода.")
+        self.type_text("Ты помолился. +20 HP, святая вода.")
         self.clear_buttons()
         self.make_button("Назад", self.show_village)
         self.refresh()
@@ -450,7 +528,7 @@ class Quest:
     def show_castle(self):
         f.click()
         f.draw_location(self.canvas, "castle")
-        self.set_text("Замок. Стражник: «Спаси принцессу!»")
+        self.type_text("Замок. Стражник: «Спаси принцессу!»")
         self.clear_buttons()
         self.make_button("К дракону", self.show_dragon)
         self.make_button("В тронный зал", self.throne_room)
@@ -461,14 +539,14 @@ class Quest:
     def throne_room(self):
         f.click()
         if not f.dragon_defeated:
-            self.set_text("Сначала убей дракона!")
+            self.type_text("Сначала убей дракона!")
         elif not f.princess_saved:
             f.princess_saved = True
             f.add_gold(500)
             f.add_xp(50)
-            self.set_text("Ты спас принцессу! +500 золота.")
+            self.type_text("Ты спас принцессу! +500 золота.")
         else:
-            self.set_text("Принцесса уже спасена.")
+            self.type_text("Принцесса уже спасена.")
         self.clear_buttons()
         self.make_button("Назад", self.show_castle)
         self.refresh()
@@ -477,14 +555,14 @@ class Quest:
     def library(self):
         f.click()
         if not f.can_reward("library"):
-            self.set_text("Ты уже прочитал все редкие книги.")
+            self.type_text("Ты уже прочитал все редкие книги.")
             self.clear_buttons()
             self.make_button("Назад", self.show_castle)
             return
         f.mark_reward("library")
         f.add_xp(20)
         f.add_item("Книга")
-        self.set_text("Прочитал книги. +20 опыта, книга.")
+        self.type_text("Прочитал книги. +20 опыта, книга.")
         self.clear_buttons()
         self.make_button("Назад", self.show_castle)
         self.refresh()
@@ -492,13 +570,13 @@ class Quest:
     def castle_basement(self):
         f.click()
         if not f.can_reward("castle_basement"):
-            self.set_text("Подвал замка обыскан.")
+            self.type_text("Подвал замка обыскан.")
             self.clear_buttons()
             self.make_button("Назад", self.show_castle)
             return
         f.mark_reward("castle_basement")
         f.add_gold(random.randint(200, 600))
-        self.set_text("В подвале замка — сундук с золотом.")
+        self.type_text("В подвале замка — сундук с золотом.")
         self.clear_buttons()
         self.make_button("Назад", self.show_castle)
         self.refresh()
@@ -507,7 +585,7 @@ class Quest:
     def show_dragon(self):
         f.click()
         f.draw_location(self.canvas, "dragon")
-        self.set_text("Логово дракона. Он смотрит на тебя.")
+        self.type_text("Логово дракона. Он смотрит на тебя.")
         self.clear_buttons()
         self.make_button("Сражаться", self.fight_dragon)
         self.make_button("Договориться", self.dragon_talk)
@@ -516,15 +594,15 @@ class Quest:
     def fight_dragon(self):
         f.click()
         if f.dragon_defeated:
-            self.set_text("Дракон уже повержен.")
+            self.type_text("Дракон уже повержен.")
         elif random.random() < 0.5:
             f.dragon_defeated = True
             f.add_gold(1000)
             f.add_xp(80)
-            self.set_text("Дракон повержен! +1000 золота.")
+            self.type_text("Дракон повержен! +1000 золота.")
         else:
             f.damage(50)
-            self.set_text("Дракон обжёг тебя! -50 HP.")
+            self.type_text("Дракон обжёг тебя! -50 HP.")
         self.clear_buttons()
         self.make_button("Назад", self.show_castle)
         self.refresh()
@@ -534,11 +612,11 @@ class Quest:
     def dragon_talk(self):
         f.click()
         if f.dragon_defeated:
-            self.set_text("Дракон уже покинул логово.")
+            self.type_text("Дракон уже покинул логово.")
         else:
             f.add_gold(400)
             f.dragon_defeated = True
-            self.set_text("Дракон согласился на мир. +400 золота.")
+            self.type_text("Дракон согласился на мир. +400 золота.")
         self.clear_buttons()
         self.make_button("Назад", self.show_castle)
         self.refresh()
@@ -549,7 +627,7 @@ class Quest:
     def show_swamp(self):
         f.click()
         f.draw_location(self.canvas, "swamp")
-        self.set_text("Болото. Пахнет сыростью.")
+        self.type_text("Болото. Пахнет сыростью.")
         self.clear_buttons()
         self.make_button("Искать клад", self.swamp_treasure)
         self.make_button("К хижине", self.swamp_hut)
@@ -558,7 +636,7 @@ class Quest:
     def swamp_treasure(self):
         f.click()
         if not f.can_reward("swamp"):
-            self.set_text("Болото больше ничего не отдаёт.")
+            self.type_text("Болото больше ничего не отдаёт.")
             self.clear_buttons()
             self.make_button("Назад", self.show_swamp)
             return
@@ -567,14 +645,14 @@ class Quest:
         if roll < 0.2 and not f.strange_key:
             f.strange_key = True
             f.add_item("Странный ключ")
-            self.set_text("Ты нашёл СТРАННЫЙ КЛЮЧ!")
+            self.type_text("Ты нашёл СТРАННЫЙ КЛЮЧ!")
         elif roll < 0.6:
             gain = random.randint(30, 100)
             f.add_gold(gain)
-            self.set_text(f"Ты нашёл золото! +{gain}.")
+            self.type_text(f"Ты нашёл золото! +{gain}.")
         else:
             f.damage(random.randint(5, 15))
-            self.set_text("Змея укусила! -HP.")
+            self.type_text("Змея укусила! -HP.")
         self.clear_buttons()
         self.make_button("Ещё", self.swamp_treasure)
         self.make_button("Назад", self.show_swamp)
@@ -585,7 +663,7 @@ class Quest:
     def swamp_hut(self):
         f.click()
         if not f.can_reward("swamp_hut"):
-            self.set_text("Ведьма больше ничего не даёт.")
+            self.type_text("Ведьма больше ничего не даёт.")
             self.clear_buttons()
             self.make_button("Назад", self.show_swamp)
             return
@@ -593,9 +671,9 @@ class Quest:
             f.gold -= 30
             f.mark_reward("swamp_hut")
             f.add_item("Болотный амулет")
-            self.set_text("Ведьма дала амулет за 30 золота.")
+            self.type_text("Ведьма дала амулет за 30 золота.")
         else:
-            self.set_text("Нужно 30 золота.")
+            self.type_text("Нужно 30 золота.")
         self.clear_buttons()
         self.make_button("Назад", self.show_swamp)
         self.refresh()
@@ -605,7 +683,7 @@ class Quest:
     def show_mountains(self):
         f.click()
         f.draw_location(self.canvas, "mountains")
-        self.set_text("Горы. Ветер, снег, где-то блестит золото.")
+        self.type_text("Горы. Ветер, снег, где-то блестит золото.")
         self.clear_buttons()
         self.make_button("Вершина", self.mountain_top)
         self.make_button("Пещера", self.mountain_cave)
@@ -614,14 +692,14 @@ class Quest:
     def mountain_top(self):
         f.click()
         if not f.can_reward("mountain_top"):
-            self.set_text("Ты уже покорил эту вершину.")
+            self.type_text("Ты уже покорил эту вершину.")
             self.clear_buttons()
             self.make_button("Назад", self.show_mountains)
             return
         f.mark_reward("mountain_top")
         f.add_xp(20)
         f.add_gold(100)
-        self.set_text("Ты взошёл на вершину. +100 золота, +20 опыта.")
+        self.type_text("Ты взошёл на вершину. +100 золота, +20 опыта.")
         self.clear_buttons()
         self.make_button("Назад", self.show_mountains)
         self.refresh()
@@ -629,13 +707,13 @@ class Quest:
     def mountain_cave(self):
         f.click()
         if not f.can_reward("mountain_cave"):
-            self.set_text("Пещера пуста.")
+            self.type_text("Пещера пуста.")
             self.clear_buttons()
             self.make_button("Назад", self.show_mountains)
             return
         f.mark_reward("mountain_cave")
         f.add_gold(random.randint(200, 800))
-        self.set_text("В пещере ты нашёл сокровища!")
+        self.type_text("В пещере ты нашёл сокровища!")
         self.clear_buttons()
         self.make_button("Назад", self.show_mountains)
         self.refresh()
@@ -646,7 +724,7 @@ class Quest:
     def show_sea(self):
         f.click()
         f.draw_location(self.canvas, "sea")
-        self.set_text("Море. Шум волн, крики чаек.")
+        self.type_text("Море. Шум волн, крики чаек.")
         self.clear_buttons()
         self.make_button("Поплавать", self.sea_swim)
         self.make_button("Сокровища", self.sea_treasure)
@@ -655,13 +733,13 @@ class Quest:
     def sea_swim(self):
         f.click()
         if not f.can_reward("sea_swim"):
-            self.set_text("Ты уже накупался вдоволь.")
+            self.type_text("Ты уже накупался вдоволь.")
             self.clear_buttons()
             self.make_button("Назад", self.show_sea)
             return
         f.mark_reward("sea_swim")
         f.heal(15)
-        self.set_text("Ты поплавал. +15 HP.")
+        self.type_text("Ты поплавал. +15 HP.")
         self.clear_buttons()
         self.make_button("Назад", self.show_sea)
         self.refresh()
@@ -669,13 +747,13 @@ class Quest:
     def sea_treasure(self):
         f.click()
         if not f.can_reward("sea_treasure"):
-            self.set_text("Больше сокровищ на дне нет.")
+            self.type_text("Больше сокровищ на дне нет.")
             self.clear_buttons()
             self.make_button("Назад", self.show_sea)
             return
         f.mark_reward("sea_treasure")
         f.add_gold(random.randint(200, 600))
-        self.set_text("Ты нашёл затонувшее сокровище!")
+        self.type_text("Ты нашёл затонувшее сокровище!")
         self.clear_buttons()
         self.make_button("Назад", self.show_sea)
         self.refresh()
@@ -686,7 +764,7 @@ class Quest:
     def show_cemetery(self):
         f.click()
         f.draw_location(self.canvas, "cemetery")
-        self.set_text("Кладбище. Тихо. Только вороны.")
+        self.type_text("Кладбище. Тихо. Только вороны.")
         self.clear_buttons()
         self.make_button("Склеп", self.crypt)
         self.make_button("Призраки", self.ghosts)
@@ -695,13 +773,13 @@ class Quest:
     def crypt(self):
         f.click()
         if not f.can_reward("crypt"):
-            self.set_text("Склеп пуст.")
+            self.type_text("Склеп пуст.")
             self.clear_buttons()
             self.make_button("Назад", self.show_cemetery)
             return
         f.mark_reward("crypt")
         f.add_gold(random.randint(100, 400))
-        self.set_text("В склепе — золото.")
+        self.type_text("В склепе — золото.")
         self.clear_buttons()
         self.make_button("Назад", self.show_cemetery)
         self.refresh()
@@ -709,14 +787,14 @@ class Quest:
     def ghosts(self):
         f.click()
         if f.undead_defeated:
-            self.set_text("Призраки уже развеяны.")
+            self.type_text("Призраки уже развеяны.")
         elif random.random() < 0.6:
             f.undead_defeated = True
             f.add_xp(30)
-            self.set_text("Ты развеял призраков! +30 опыта.")
+            self.type_text("Ты развеял призраков! +30 опыта.")
         else:
             f.damage(30)
-            self.set_text("Призраки ранили! -30 HP.")
+            self.type_text("Призраки ранили! -30 HP.")
         self.clear_buttons()
         self.make_button("Назад", self.show_cemetery)
         self.refresh()
@@ -728,7 +806,7 @@ class Quest:
     def show_ruins(self):
         f.click()
         f.draw_location(self.canvas, "ruins")
-        self.set_text("Древние руины. Пахнет магией.")
+        self.type_text("Древние руины. Пахнет магией.")
         self.clear_buttons()
         self.make_button("Алтарь", self.altar)
         self.make_button("Сокровищница", self.ruins_treasure)
@@ -737,14 +815,14 @@ class Quest:
     def altar(self):
         f.click()
         if not f.can_reward("altar"):
-            self.set_text("Алтарь уже не отвечает.")
+            self.type_text("Алтарь уже не отвечает.")
             self.clear_buttons()
             self.make_button("Назад", self.show_ruins)
             return
         f.mark_reward("altar")
         f.add_item("Магический артефакт")
         f.add_xp(40)
-        self.set_text("Ты нашёл артефакт! +40 опыта.")
+        self.type_text("Ты нашёл артефакт! +40 опыта.")
         self.clear_buttons()
         self.make_button("Назад", self.show_ruins)
         self.refresh()
@@ -752,13 +830,13 @@ class Quest:
     def ruins_treasure(self):
         f.click()
         if not f.can_reward("ruins_treasure"):
-            self.set_text("Сокровищница руин пуста.")
+            self.type_text("Сокровищница руин пуста.")
             self.clear_buttons()
             self.make_button("Назад", self.show_ruins)
             return
         f.mark_reward("ruins_treasure")
         f.add_gold(random.randint(500, 1500))
-        self.set_text("Ты нашёл сокровищницу руин!")
+        self.type_text("Ты нашёл сокровищницу руин!")
         self.clear_buttons()
         self.make_button("Назад", self.show_ruins)
         self.refresh()
@@ -769,7 +847,7 @@ class Quest:
     def show_fairy(self):
         f.click()
         f.draw_location(self.canvas, "forest")
-        self.set_text("Лес фей. В воздухе блестит пыльца.")
+        self.type_text("Лес фей. В воздухе блестит пыльца.")
         self.clear_buttons()
         self.make_button("Найти фею", self.find_fairy)
         self.make_button("Собрать пыльцу", self.fairy_dust)
@@ -778,12 +856,12 @@ class Quest:
     def find_fairy(self):
         f.click()
         if f.fairy_friend:
-            self.set_text("Фея уже подружилась с тобой.")
+            self.type_text("Фея уже подружилась с тобой.")
         else:
             f.fairy_friend = True
             f.add_item("Дар феи")
             f.add_xp(30)
-            self.set_text("Фея стала твоим другом! +30 опыта.")
+            self.type_text("Фея стала твоим другом! +30 опыта.")
         self.clear_buttons()
         self.make_button("Назад", self.show_fairy)
         self.refresh()
@@ -792,14 +870,14 @@ class Quest:
     def fairy_dust(self):
         f.click()
         if not f.can_reward("fairy_dust"):
-            self.set_text("Пыльцы больше нет.")
+            self.type_text("Пыльцы больше нет.")
             self.clear_buttons()
             self.make_button("Назад", self.show_fairy)
             return
         f.mark_reward("fairy_dust")
         f.add_item("Волшебная пыльца")
         f.heal(10)
-        self.set_text("Ты собрал пыльцу. +10 HP.")
+        self.type_text("Ты собрал пыльцу. +10 HP.")
         self.clear_buttons()
         self.make_button("Назад", self.show_fairy)
         self.refresh()
@@ -809,7 +887,7 @@ class Quest:
     def show_unicorns(self):
         f.click()
         f.draw_location(self.canvas, "forest")
-        self.set_text("Долина единорогов. Радуга и тишина.")
+        self.type_text("Долина единорогов. Радуга и тишина.")
         self.clear_buttons()
         self.make_button("Подружиться", self.befriend_unicorn)
         self.make_button("Взять рог", self.unicorn_horn)
@@ -818,11 +896,11 @@ class Quest:
     def befriend_unicorn(self):
         f.click()
         if f.unicorn_friend:
-            self.set_text("Единорог уже твой друг.")
+            self.type_text("Единорог уже твой друг.")
         else:
             f.unicorn_friend = True
             f.add_xp(30)
-            self.set_text("Единорог стал твоим другом!")
+            self.type_text("Единорог стал твоим другом!")
         self.clear_buttons()
         self.make_button("Назад", self.show_unicorns)
         self.refresh()
@@ -831,14 +909,14 @@ class Quest:
     def unicorn_horn(self):
         f.click()
         if not f.can_reward("unicorn_horn"):
-            self.set_text("Второй рог брать нельзя.")
+            self.type_text("Второй рог брать нельзя.")
             self.clear_buttons()
             self.make_button("Назад", self.show_unicorns)
             return
         f.mark_reward("unicorn_horn")
         f.add_item("Рог единорога")
         f.add_gold(300)
-        self.set_text("Ты взял рог. +300 золота.")
+        self.type_text("Ты взял рог. +300 золота.")
         self.clear_buttons()
         self.make_button("Назад", self.show_unicorns)
         self.refresh()
@@ -850,7 +928,7 @@ class Quest:
         f.click()
         f.heal(25)
         f.day += 1
-        self.set_text(f"Ты отдохнул. +25 HP. День {f.day}.")
+        self.type_text(f"Ты отдохнул. +25 HP. День {f.day}.")
         self.clear_buttons()
         self.make_button("Назад", self.show_crossroads)
         self.refresh()
@@ -860,10 +938,10 @@ class Quest:
         f.click()
         f.draw_location(self.canvas, "forest")
         if f.inventory:
-            self.set_text("Инвентарь:\n" +
-                          "\n".join("• " + x for x in f.inventory))
+            self.type_text("Инвентарь:\n" +
+                           "\n".join("• " + x for x in f.inventory))
         else:
-            self.set_text("Инвентарь пуст.")
+            self.type_text("Инвентарь пуст.")
 
         self.clear_buttons()
 
@@ -876,11 +954,68 @@ class Quest:
         self.make_button("Сменить персонажа", self.show_name_choice)
         self.make_button("Назад", self.show_crossroads)
 
+    # -------- прогресс концовок + «Ответить» --------
+
     def show_progress(self):
         f.click()
-        self.set_text(e.show_progress())
+        self.type_text(e.show_progress())
         self.clear_buttons()
+        self.make_button("Ответить", self.progress_reply)
         self.make_button("Назад", self.show_inventory)
+
+    def progress_reply(self):
+        f.click()
+        done = []
+        left = []
+
+        if f.escape_ready and f.strange_key:
+            done.append("Побег в реальный мир")
+        else:
+            left.append("Побег: нужен Странный ключ и открытая дверь")
+
+        if f.dragon_defeated and f.princess_saved:
+            done.append("Спаситель королевства")
+        else:
+            left.append("Спаситель: убить дракона и спасти принцессу")
+
+        if f.wolf_friend and f.fairy_friend and f.unicorn_friend:
+            done.append("Друг леса")
+        else:
+            left.append("Друг леса: подружиться с волком, феей и единорогом")
+
+        if f.level >= 5 and f.gold >= 3000 \
+                and f.dragon_defeated and f.undead_defeated and f.troll_defeated:
+            done.append("Легендарный герой")
+        else:
+            left.append("Легендарный герой: ур.5+, 3000 золота, "
+                        "дракон + призраки + тролль")
+
+        if f.undead_defeated and f.troll_defeated and f.gold >= 1500:
+            done.append("Лорд подземелий")
+        else:
+            left.append("Лорд подземелий: призраки + тролль, 1500 золота")
+
+        if f.gold >= 500 and f.day >= 10 and not f.dragon_defeated:
+            done.append("Мирный житель")
+        else:
+            left.append("Мирный житель: 500 золота, 10 дней, дракон не убит")
+
+        text = "ДОСТИГНУТО:\n"
+        if done:
+            text += "\n".join("✓ " + x for x in done)
+        else:
+            text += "  пока ничего"
+
+        text += "\n\nОСТАЛОСЬ:\n"
+        if left:
+            text += "\n".join("• " + x for x in left)
+        else:
+            text += "  всё открыто!"
+
+        self.type_text(text)
+        self.clear_buttons()
+        self.make_button("Назад к прогрессу", self.show_progress)
+        self.make_button("В меню", self.show_crossroads)
 
 
 if __name__ == "__main__":

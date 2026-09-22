@@ -1,3 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import functions as f
 
 
@@ -6,7 +42,7 @@ def check_endings():
         return "escape"
     if f.dragon_defeated and f.princess_saved:
         return "savior"
-    if f.wolf_friend and f.fairy_friend or f.unicorn_friend and f.fairy_friend or f.wolf_friend and f.unicorn_friend:
+    if f.wolf_friend and f.fairy_friend and f.unicorn_friend:
         return "friend"
     if f.level >= 5 and f.gold >= 3000 \
             and f.dragon_defeated and f.undead_defeated and f.troll_defeated:
