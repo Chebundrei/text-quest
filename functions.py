@@ -35,42 +35,15 @@
 
 
 
-import os
 import random
-import winsound
+import time
+import sys
+import os
 
 
-SOUND_DIR = r"C:\Users\cl\Desktop\soundds"
-SND_CLICK = os.path.join(SOUND_DIR, "click.wav")
-SND_ERROR = os.path.join(SOUND_DIR, "error.wav")
-SND_LOSE  = os.path.join(SOUND_DIR, "lose.wav")
-SND_WIN   = os.path.join(SOUND_DIR, "win.wav")
-
-
-def _play(path):
-    if not os.path.exists(path):
-        return
-    try:
-        winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-    except Exception:
-        pass
-
-
-def click():
-    _play(SND_CLICK)
-
-
-def error():
-    _play(SND_ERROR)
-
-
-def lose():
-    _play(SND_LOSE)
-
-
-def win():
-    _play(SND_WIN)
-
+# ==========================================
+# СОСТОЯНИЕ
+# ==========================================
 
 inventory = []
 hp = 100
@@ -131,6 +104,191 @@ def mark_reward(key):
     reward_counts[key] = reward_counts.get(key, 0) + 1
 
 
+# ==========================================
+# ЗВУК И ПАУЗЫ
+# ==========================================
+
+def sound(name):
+    try:
+        import winsound
+    except ImportError:
+        time.sleep(0.05)
+        return
+    paths = {
+        "click": r"C:\Users\cl\Desktop\soundds\click.wav",
+        "error": r"C:\Users\cl\Desktop\soundds\error.wav",
+        "lose":  r"C:\Users\cl\Desktop\soundds\lose.wav",
+        "win":   r"C:\Users\cl\Desktop\soundds\win.wav",
+    }
+    p = paths.get(name)
+    if p and os.path.exists(p):
+        try:
+            winsound.PlaySound(p, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        except Exception:
+            pass
+
+
+def slow_print(text, delay=0.02):
+    if text is None:
+        text = ""
+    for ch in text:
+        sys.stdout.write(ch)
+        sys.stdout.flush()
+        time.sleep(delay)
+    print()
+
+
+def pause(seconds=1.0):
+    time.sleep(seconds)
+
+
+# ==========================================
+# ASCII-ГРАФИКА
+# ==========================================
+
+ASCII_ART = {
+"Развилка": r"""
+         /\
+        /  \
+       /    \
+      /      \
+     /   /\   \
+    /   /  \   \
+   /___/    \___\
+       |    |
+   /\  |    |  /\
+  /  \ |    | /  \
+        РАЗВИЛКА
+""",
+"Лес": r"""
+    /\  /\  /\
+   /  \/  \/  \
+  /   /\  /\   \
+ /___/  \/  \___\
+ /|\ /|\  /|\ /|\
+        ЛЕС
+""",
+"Деревня": r"""
+       /\
+      /  \
+     /____\
+     | [] |
+  ___|____|___
+ |_____________|
+    ДЕРЕВНЯ
+""",
+"Болото": r"""
+    ~~~ ~~~ ~~~ ~~~
+  _|_  _|_  _|_  _|_
+ |   ||   ||   ||   |
+ |___||___||___||___|
+      БОЛОТО
+""",
+"Горы": r"""
+        /\
+       /  \
+      /    \
+     /  /\  \
+   /__/____\__\
+   |    /\    |
+   |__/____\__|
+      ГОРЫ
+""",
+"Море": r"""
+~~~~~~~~~~~~~~~~~~~~~~~
+  ~~~ ~~~ ~~~ ~~~ ~~~
+ ~~~~~~~~ ~~~~~~~~
+      ~~~~~~~~
+        МОРЕ
+""",
+"Замок": r"""
+        |\
+       _|___|_
+      |       |
+      | [] [] |
+      |  ___  |
+      |_|___|_|
+      |_______|
+       ЗАМОК
+""",
+"Драконье логово": r"""
+   __________________
+  |   /\        /\   |
+  |  /  \      /  \  |
+  | | () |    | () | |
+  |__\/________\/____|
+    ДРАКОНЬЕ ЛОГОВО
+""",
+"Кладбище": r"""
+    _____   _____
+   |  +  | |  +  |
+   |_____| |_____|
+    КЛАДБИЩЕ
+""",
+"Руины": r"""
+  _   _   _   _
+ | |_| |_| |_| |
+ |  _   _   _  |
+ |_| |_| |_| |_|
+     РУИНЫ
+""",
+"Лес фей": r"""
+   *   .   *   .   *
+  .  *  .  *  .  *  .
+ *   .   *   .   *   .
+    ЛЕС ФЕЙ
+""",
+"Долина единорогов": r"""
+     /\   /\
+    /  \_/  \
+   |  o   o  |
+    \  ===  /
+     |_____|
+   ДОЛИНА ЕДИНОРОГОВ
+""",
+"Победа": r"""
+   *  *  *  *  *
+  *  ПОБЕДА  *
+   *  *  *  *  *
+""",
+"Поражение": r"""
+   _______________
+  |               |
+  |  ТЫ ПРОИГРАЛ  |
+  |_______________|
+"""
+}
+
+
+def show_location(name):
+    art = ASCII_ART.get(name)
+    if art:
+        print(art)
+
+
+# ==========================================
+# СТАТУС
+# ==========================================
+
+def show_status():
+    bar = int(hp / max_hp * 20)
+    bar = max(0, min(20, bar))
+    line = "[" + "|" * bar + "." * (20 - bar) + "]"
+    print()
+    print("========== СТАТУС ==========")
+    print(f"HP {hp}/{max_hp} {line}")
+    print(f"Золото: {gold}   День: {day}   Ур.{level} (опыт {xp}/{level*10})")
+    if inventory:
+        print("Инвентарь: " + ", ".join(inventory[-4:]))
+    else:
+        print("Инвентарь: —")
+    print("============================")
+
+
+# ==========================================
+# ДЕЙСТВИЯ
+# ==========================================
+
 def add_item(item):
     inventory.append(item)
 
@@ -165,109 +323,98 @@ def damage(amount):
     return hp <= 0
 
 
-def draw_location(canvas, kind):
-    canvas.delete("all")
-    c = canvas
-    if kind == "cross":
-        c.create_oval(380, 120, 520, 260,
-                      fill="#1e3a1e", outline="#88ff88", width=3)
-        c.create_text(450, 190, text="РАЗВИЛКА",
-                      fill="#e8e8c8", font=("Consolas", 16, "bold"))
-        c.create_line(450, 260, 250, 340, fill="#a08050", width=6)
-        c.create_line(450, 260, 450, 340, fill="#a08050", width=6)
-        c.create_line(450, 260, 650, 340, fill="#a08050", width=6)
-        c.create_text(250, 355, text="Лес",
-                      fill="#c8ffc8", font=("Consolas", 11))
-        c.create_text(450, 355, text="Деревня",
-                      fill="#c8ffc8", font=("Consolas", 11))
-        c.create_text(650, 355, text="Болото",
-                      fill="#c8ffc8", font=("Consolas", 11))
-    elif kind == "forest":
-        for x in range(60, 880, 90):
-            c.create_rectangle(x, 200, x + 18, 320,
-                               fill="#5a3a1a", outline="")
-            c.create_polygon(x - 25, 200, x + 45, 200, x + 10, 130,
-                             fill="#1e5a1e", outline="#2e7a2e", width=2)
-        c.create_text(450, 60, text="ЛЕС",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "village":
-        for x in (200, 400, 600):
-            c.create_rectangle(x, 200, x + 130, 300,
-                               fill="#7a5a3a", outline="#3a2a1a", width=2)
-            c.create_polygon(x - 10, 200, x + 70, 140, x + 140, 200,
-                             fill="#8b3a1a", outline="#3a1a0a", width=2)
-            c.create_rectangle(x + 50, 250, x + 80, 300, fill="#3a2a1a")
-        c.create_text(450, 60, text="ДЕРЕВНЯ",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "swamp":
-        c.create_rectangle(0, 250, 900, 380, fill="#2a4a3a", outline="")
-        for x in range(40, 900, 100):
-            c.create_oval(x, 270, x + 80, 310,
-                          fill="#3a6a4a", outline="#1e3a2a")
-        c.create_text(450, 60, text="БОЛОТО",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "castle":
-        c.create_rectangle(250, 150, 650, 320,
-                           fill="#6a6a7a", outline="#3a3a4a", width=3)
-        c.create_rectangle(200, 120, 280, 320,
-                           fill="#8a8a9a", outline="#3a3a4a", width=3)
-        c.create_rectangle(620, 120, 700, 320,
-                           fill="#8a8a9a", outline="#3a3a4a", width=3)
-        c.create_polygon(200, 120, 240, 70, 280, 120, fill="#8b3a1a")
-        c.create_polygon(620, 120, 660, 70, 700, 120, fill="#8b3a1a")
-        c.create_rectangle(420, 240, 480, 320, fill="#3a2a1a")
-        c.create_text(450, 60, text="ЗАМОК",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "dragon":
-        c.create_oval(330, 100, 570, 280,
-                      fill="#5a1a1a", outline="#ff4444", width=4)
-        c.create_text(450, 180, text="ДРАКОН",
-                      fill="#ffcccc", font=("Consolas", 22, "bold"))
-        c.create_polygon(350, 130, 300, 80, 380, 110,
-                         fill="#7a2a2a", outline="#ff4444")
-        c.create_polygon(550, 130, 600, 80, 520, 110,
-                         fill="#7a2a2a", outline="#ff4444")
-    elif kind == "cemetery":
-        c.create_rectangle(0, 300, 900, 380, fill="#1a1a2a", outline="")
-        for x in range(80, 880, 120):
-            c.create_rectangle(x, 220, x + 60, 300,
-                               fill="#4a4a5a", outline="#2a2a3a", width=2)
-            c.create_line(x + 30, 220, x + 30, 200,
-                          fill="#8a8a9a", width=3)
-            c.create_line(x + 20, 200, x + 40, 200,
-                          fill="#8a8a9a", width=3)
-        c.create_text(450, 60, text="КЛАДБИЩЕ",
-                      fill="#c8c8d8", font=("Consolas", 20, "bold"))
-    elif kind == "sea":
-        c.create_rectangle(0, 0, 900, 380, fill="#0a2a4a", outline="")
-        for y in range(120, 380, 40):
-            c.create_line(0, y, 900, y, fill="#1a4a7a", width=3)
-        c.create_text(450, 60, text="МОРЕ",
-                      fill="#c8e8ff", font=("Consolas", 20, "bold"))
-    elif kind == "mountains":
-        c.create_polygon(100, 340, 300, 80, 500, 340,
-                         fill="#4a4a5a", outline="#2a2a3a", width=3)
-        c.create_polygon(400, 340, 600, 120, 800, 340,
-                         fill="#5a5a6a", outline="#2a2a3a", width=3)
-        c.create_text(450, 60, text="ГОРЫ",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "ruins":
-        for x in (150, 350, 550, 750):
-            c.create_rectangle(x, 200, x + 60, 340,
-                               fill="#7a6a5a", outline="#3a2a1a", width=2)
-            c.create_line(x, 200, x + 60, 200, fill="#3a2a1a", width=2)
-        c.create_text(450, 60, text="РУИНЫ",
-                      fill="#e8e8c8", font=("Consolas", 20, "bold"))
-    elif kind == "win":
-        for _ in range(80):
-            x = random.randint(0, 900)
-            y = random.randint(0, 380)
-            col = random.choice(["#ffd166", "#88ff88",
-                                 "#88ccff", "#ff8888", "#ff88ff"])
-            c.create_oval(x, y, x + 10, y + 10, fill=col, outline="")
-        c.create_text(450, 180, text="ПОБЕДА!",
-                      fill="#ffd166", font=("Consolas", 40, "bold"))
-    elif kind == "lose":
-        c.create_rectangle(0, 0, 900, 380, fill="#2a0a0a", outline="")
-        c.create_text(450, 190, text="ТЫ ПРОИГРАЛ",
-                      fill="#ff4444", font=("Consolas", 36, "bold"))
+# ==========================================
+# ВВОД
+# ==========================================
+
+def ask_choice(max_choice):
+    while True:
+        s = input("Твой выбор: ").strip()
+        if not s:
+            sound("error")
+            print("Введи число!")
+            continue
+        try:
+            v = int(s)
+        except ValueError:
+            sound("error")
+            print("Введи число!")
+            continue
+        if 1 <= v <= max_choice:
+            return v
+        sound("error")
+        print(f"Введи число от 1 до {max_choice}")
+
+
+def ask_yes_no(prompt):
+    while True:
+        s = input(prompt).strip().lower()
+        if s in ("д", "да", "y", "yes"):
+            return True
+        if s in ("н", "нет", "n", "no"):
+            return False
+        sound("error")
+        print("Ответь 'д' или 'н'.")
+
+
+# ==========================================
+# ПОДВАЛ
+# ==========================================
+
+def explore_basement(place_name):
+    global strange_key, escape_ready
+    show_location("Руины")
+    slow_print(f"Ты спускаешься в подвал {place_name}.")
+
+    while True:
+        show_status()
+        print("1 - Осмотреть полки")
+        print("2 - Открыть сундук")
+        print("3 - Осмотреть дверь")
+        print("4 - Подняться обратно")
+        a = ask_choice(4)
+
+        if a == 1:
+            if random.random() < 0.4:
+                add_item("Факел")
+                slow_print("Ты нашёл факел.")
+            else:
+                slow_print("Ничего интересного.")
+            input("Enter...")
+
+        elif a == 2:
+            if not can_reward("basement_chest"):
+                slow_print("Сундук уже пуст.")
+                input("Enter...")
+                continue
+            mark_reward("basement_chest")
+            roll = random.random()
+            if roll < 0.2 and not strange_key:
+                strange_key = True
+                add_item("Странный ключ")
+                slow_print("*** В сундуке лежит СТРАННЫЙ КЛЮЧ! ***")
+            elif roll < 0.6:
+                g = random.randint(30, 100)
+                add_gold(g)
+                slow_print(f"Ты нашёл золото! +{g}.")
+            else:
+                damage(random.randint(3, 10))
+                slow_print("Из сундука выпрыгнули пауки! -HP.")
+            input("Enter...")
+
+        elif a == 3:
+            slow_print("В углу массивная железная дверь.")
+            if strange_key:
+                print("У тебя есть Странный ключ!")
+                print("1 - Открыть дверь")
+                print("2 - Отойти")
+                b = ask_choice(2)
+                if b == 1:
+                    escape_ready = True
+                    slow_print("Ключ повернулся. Дверь открыта. Ты видишь белый свет!")
+            else:
+                slow_print("Нужен необычный ключ.")
+            input("Enter...")
+
+        else:
+            break

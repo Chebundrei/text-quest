@@ -31,7 +31,11 @@
 
 
 
-import tkinter as tk
+
+
+
+
+
 import random
 
 import functions as f
@@ -72,953 +76,587 @@ REPLIES = {
 }
 
 
-class Quest:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Лесное приключение — 2D")
-        self.root.attributes("-fullscreen", True)
-        self.root.configure(bg="#1a2b1a")
-        self.root.bind("<Escape>", self.toggle_fullscreen)
+# ==========================================
+# ВЫБОР ИМЕНИ
+# ==========================================
 
-        self.screen_w = self.root.winfo_screenwidth()
-        self.screen_h = self.root.winfo_screenheight()
+def choose_name():
+    print()
+    print("=====================================")
+    print("         ВЫБЕРИ СВОЁ ИМЯ")
+    print("=====================================")
+    for i, (name, _p, _b) in enumerate(NAME_OPTIONS, 1):
+        print(f"{i} - {name}")
+    print("=====================================")
+    idx = f.ask_choice(len(NAME_OPTIONS))
 
-        self.player_name = None
-        self.player_bonus = None
-        self._typing_job = None
+    chosen, phrase, bonus = NAME_OPTIONS[idx - 1]
 
-        canvas_h = self.screen_h - 260
+    if chosen == "Другое":
+        while True:
+            custom = input("Введи своё имя: ").strip()
+            if custom:
+                break
+            f.sound("error")
+            print("Имя не может быть пустым.")
+        name = custom
+        phrase = f"Другoe — ок. Идём в лес, {custom}!"
+    else:
+        name = chosen
 
-        self.canvas = tk.Canvas(root,
-                                width=self.screen_w,
-                                height=canvas_h,
-                                bg="#0f1e0f",
-                                highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True)
+    print()
+    f.slow_print(f"Итак, тебя зовут {name}.")
+    f.slow_print(phrase)
 
-        self.text = tk.Label(root, text="", font=("Consolas", 16),
-                             fg="#e8e8c8", bg="#1a2b1a",
-                             justify="left", anchor="nw",
-                             wraplength=self.screen_w - 40)
-        self.text.place(x=20, y=self.screen_h - 260,
-                        width=self.screen_w - 40, height=100)
+    f.pause(1.0)
+    return name, bonus
 
-        self.hp_label = tk.Label(root, text="",
-                                 font=("Consolas", 14, "bold"),
-                                 fg="#88ff88", bg="#1a2b1a", anchor="w")
-        self.hp_label.place(x=20, y=self.screen_h - 155)
 
-        self.gold_label = tk.Label(root, text="",
-                                   font=("Consolas", 14, "bold"),
-                                   fg="#ffd166", bg="#1a2b1a", anchor="w")
-        self.gold_label.place(x=500, y=self.screen_h - 155)
+def apply_bonus(bonus):
+    g = int(bonus.get("gold", 0))
+    h = int(bonus.get("hp", 0))
+    if g > 0:
+        f.gold += g
+    if h > 0:
+        f.max_hp += h
+        f.hp = f.max_hp
+    for it in bonus.get("items", []):
+        f.add_item(it)
 
-        self.inv_label = tk.Label(root, text="",
-                                  font=("Consolas", 12),
-                                  fg="#c8c8ff", bg="#1a2b1a", anchor="w")
-        self.inv_label.place(x=1000, y=self.screen_h - 155)
 
-        self.buttons = tk.Frame(root, bg="#1a2b1a")
-        self.buttons.place(x=20, y=self.screen_h - 130,
-                           width=self.screen_w - 40, height=120)
+# ==========================================
+# КОНЦОВКИ
+# ==========================================
 
-        self._btn_count = 0
-        self.show_name_choice()
+def show_ending_screen(kind):
+    if kind == "lose":
+        f.show_location("Поражение")
+        f.sound("lose")
+        text = "Ты погиб в лесу..."
+    else:
+        f.show_location("Победа")
+        f.sound("win")
+        text = e.ending_text(kind)
 
-    # -------- медленная печать --------
+    f.slow_print(text)
+    print()
+    print("1 - Ответить")
+    f.ask_choice(1)
+    f.slow_print(REPLIES.get(kind, ""))
+    print()
+    print("1 - Играть снова")
+    print("2 - Другой персонаж")
+    print("3 - Выйти")
+    a = f.ask_choice(3)
+    return a
 
-    def type_text(self, s, delay=20):
-        if self._typing_job is not None:
-            try:
-                self.root.after_cancel(self._typing_job)
-            except Exception:
-                pass
-            self._typing_job = None
 
-        self.text.config(text="")
+# ==========================================
+# ЛОКАЦИИ
+# ==========================================
 
-        def step(i):
-            if i >= len(s):
-                self._typing_job = None
-                return
-            self.text.config(text=s[:i + 1])
-            self._typing_job = self.root.after(delay, step, i + 1)
+def loc_forest():
+    while True:
+        f.show_location("Лес")
+        f.show_status()
+        print("=== ЛЕС ===")
+        print("1 - В чащу")
+        print("2 - Собрать травы")
+        print("3 - К ручью")
+        print("4 - К дубу")
+        print("5 - Найти замок")
+        print("6 - Назад")
+        a = f.ask_choice(6)
 
-        step(0)
+        if a == 1:
+            if not f.wolf_friend:
+                f.damage(random.randint(10, 25))
+                f.slow_print(f"Волк напал! HP: {f.hp}")
+                print("1 - Погладить волка")
+                print("2 - Убежать")
+                b = f.ask_choice(2)
+                if b == 1:
+                    f.wolf_friend = True
+                    f.add_item("Друг-волк")
+                    f.slow_print("Волк стал твоим другом!")
+            else:
+                f.heal(20)
+                f.slow_print("Волк рад тебе! +20 HP.")
 
-    def set_text(self, s):
-        if self._typing_job is not None:
-            try:
-                self.root.after_cancel(self._typing_job)
-            except Exception:
-                pass
-            self._typing_job = None
-        self.text.config(text=s)
+        elif a == 2:
+            if not f.can_reward("herbs"):
+                f.slow_print("Здесь больше нечего собирать.")
+            else:
+                f.mark_reward("herbs")
+                f.add_item("Трава")
+                f.heal(5)
+                f.add_xp(2)
+                f.slow_print("Ты собрал травы. +5 HP, +2 опыта.")
 
-    # -------- служебное --------
+        elif a == 3:
+            if not f.can_reward("stream"):
+                f.slow_print("В ручье больше нет рыбы.")
+            else:
+                f.mark_reward("stream")
+                f.add_item("Свежая рыба")
+                f.heal(10)
+                f.slow_print("Ты поймал рыбу. +10 HP.")
 
-    def toggle_fullscreen(self, event=None):
-        try:
-            self.root.attributes("-fullscreen",
-                                 not self.root.attributes("-fullscreen"))
-        except Exception:
-            pass
-    def refresh(self):
-        bar = max(0, min(20, int(f.hp / f.max_hp * 20)))
-        hp_bar = "[" + "|" * bar + "." * (20 - bar) + "]"
-        self.hp_label.config(text=f"HP {f.hp}/{f.max_hp} {hp_bar}")
-        need = f.level * 10
-        self.gold_label.config(
-            text=f"Золото: {f.gold}   День: {f.day}   Ур.{f.level} "
-                 f"(опыт {f.xp}/{need})")
-        inv = ", ".join(f.inventory[-4:]) if f.inventory else "—"
-        self.inv_label.config(text="Инвентарь: " + inv)
-    def clear_buttons(self):
-        for w in self.buttons.winfo_children():
-            w.destroy()
-        self._btn_count = 0
+        elif a == 4:
+            if not f.can_reward("oak"):
+                f.slow_print("Дупло пустое.")
+            else:
+                f.mark_reward("oak")
+                g = random.randint(30, 90)
+                f.add_gold(g)
+                f.slow_print(f"В дупле дуба — золото! +{g}.")
 
-    def make_button(self, label, cmd, width=18):
-        cols = 6
-        r = self._btn_count // cols
-        c = self._btn_count % cols
-        self._btn_count += 1
+        elif a == 5:
+            f.castle_found = True
+            f.add_xp(10)
+            f.slow_print("С холма виден замок!")
 
-        b = tk.Button(self.buttons, text=label,
-                      font=("Consolas", 12, "bold"),
-                      bg="#2e4a2e", fg="#e8e8c8",
-                      activebackground="#4a7a4a",
-                      activeforeground="#ffffff",
-                      relief="raised", bd=3,
-                      width=width, height=2, command=cmd)
-        b.grid(row=r, column=c, padx=4, pady=4, sticky="nsew")
-        self.buttons.grid_columnconfigure(c, weight=1)
-        return b
-
-    # -------- выбор имени --------
-
-    def show_name_choice(self):
-        f.draw_location(self.canvas, "cross")
-        self.type_text("Выбери персонажа — нажми кнопку.")
-        self.refresh()
-        self.clear_buttons()
-
-        for i, (name, _p, _b) in enumerate(NAME_OPTIONS):
-            self.make_button(name,
-                             lambda idx=i: self.pick_name(idx),
-                             width=15)
-
-    def pick_name(self, idx):
-        f.click()
-        name, phrase, bonus = NAME_OPTIONS[idx]
-
-        if name == "Другое":
-            self.set_text("Введи своё имя в консоли...")
-            self.root.update()
-            try:
-                custom = input("Введи своё имя: ").strip()
-            except Exception:
-                custom = ""
-            if not custom:
-                custom = "Путник"
-            self.player_name = custom
-            self.player_bonus = bonus
-            self.show_intro(phrase.replace(name, custom))
         else:
-            self.player_name = name
-            self.player_bonus = bonus
-            self.show_intro(phrase)
+            return
 
-    def show_intro(self, phrase):
-        f.reset_state()
-        self.apply_bonus(self.player_bonus)
-
-        self.type_text(f"Итак, тебя зовут {self.player_name}.\n{phrase}")
-        self.refresh()
-        self.clear_buttons()
-        self.make_button("Начать приключение", self.start_game)
-
-    def apply_bonus(self, bonus):
-        g = int(bonus.get("gold", 0))
-        h = int(bonus.get("hp", 0))
-        if g > 0:
-            f.gold += g
-        if h > 0:
-            f.max_hp += h
-            f.hp = f.max_hp
-        for it in bonus.get("items", []):
-            f.add_item(it)
-
-    def start_game(self):
-        f.click()
-        self.show_crossroads()
-
-    # -------- концовки --------
-
-    def show_ending_screen(self, kind):
-        if kind == "lose":
-            f.draw_location(self.canvas, "lose")
-            f.lose()
-            text = "Ты погиб в лесу..."
-        else:
-            f.draw_location(self.canvas, "win")
-            f.win()
-            text = e.ending_text(kind)
-
-        self.type_text(text)
-        self.clear_buttons()
-        self.make_button("Ответить", lambda: self.show_reply(kind))
-
-    def show_reply(self, kind):
-        f.click()
-        reply = REPLIES.get(kind, "")
-        self.type_text(reply)
-        self.clear_buttons()
-        self.make_button("Играть снова", self.restart)
-        self.make_button("Другой персонаж", self.show_name_choice)
-        self.make_button("Выйти", self.root.destroy)
-
-    def check_death(self):
+        input("Enter...")
         if f.hp <= 0:
-            self.show_ending_screen("lose")
-            return True
-        return False
-
-    def check_end(self):
-        end = e.check_endings()
-        if end is None:
-            return False
-        self.show_ending_screen(end)
-        return True
-
-    def restart(self):
-        f.click()
-        f.reset_state()
-        self.apply_bonus(self.player_bonus)
-        self.refresh()
-        self.show_crossroads()
-
-    # -------- ШКОЛА / макулатура --------
-
-    def exchange_school(self):
-        if "ШКОЛА" not in f.inventory:
-            self.type_text("У тебя нет ШКОЛЫ для обмена.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_inventory)
             return
-        f.inventory.remove("ШКОЛА")
-        f.add_item("10000 объяснительных")
-        self.type_text("Ты обменял ШКОЛУ на 10000 объяснительных!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_inventory)
-        self.refresh()
 
-    def recycle_notes(self):
-        if "10000 объяснительных" not in f.inventory:
-            self.type_text("Нет объяснительных для сдачи.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_inventory)
-            return
-        if not f.can_reward("recycle"):
-            self.type_text("Макулатурщик сказал: «Больше не принимаю».")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_inventory)
-            return
-        f.mark_reward("recycle")
-        f.inventory.remove("10000 объяснительных")
-        f.add_gold(100)
-        self.type_text("Ты сдал 10000 объяснительных в макулатуру!\n+100 золота.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_inventory)
-        self.refresh()
 
-    # -------- развилка --------
+def loc_swamp():
+    while True:
+        f.show_location("Болото")
+        f.show_status()
+        print("1 - Искать клад")
+        print("2 - К хижине ведьмы")
+        print("3 - Назад")
+        a = f.ask_choice(3)
 
-    def show_crossroads(self):
-        f.draw_location(self.canvas, "cross")
-        self.type_text(f"Ты на развилке, {self.player_name}. Куда пойдёшь?")
-        self.refresh()
-        self.clear_buttons()
-        self.make_button("Лес", self.show_forest)
-        self.make_button("Деревня", self.show_village)
-        self.make_button("Болото", self.show_swamp)
-        self.make_button("Горы", self.show_mountains)
-        self.make_button("Море", self.show_sea)
-        self.make_button("Кладбище", self.show_cemetery)
-        self.make_button("Руины", self.show_ruins)
-        self.make_button("Лес фей", self.show_fairy)
-        self.make_button("Единороги", self.show_unicorns)
-        self.make_button("Инвентарь", self.show_inventory)
-        self.make_button("Отдохнуть", self.rest)
+        if a == 1:
+            if not f.can_reward("swamp"):
+                f.slow_print("Болото больше ничего не отдаёт.")
+            else:
+                f.mark_reward("swamp")
+                roll = random.random()
+                if roll < 0.2 and not f.strange_key:
+                    f.strange_key = True
+                    f.add_item("Странный ключ")
+                    f.slow_print("Ты нашёл СТРАННЫЙ КЛЮЧ!")
+                elif roll < 0.6:
+                    g = random.randint(30, 100)
+                    f.add_gold(g)
+                    f.slow_print(f"Ты нашёл золото! +{g}.")
+                else:
+                    f.damage(random.randint(5, 15))
+                    f.slow_print("Змея укусила! -HP.")
 
-    # -------- лес --------
+        elif a == 2:
+            if not f.can_reward("swamp_hut"):
+                f.slow_print("Ведьма больше ничего не даёт.")
+            elif f.gold >= 30:
+                f.gold -= 30
+                f.mark_reward("swamp_hut")
+                f.add_item("Болотный амулет")
+                f.slow_print("Ведьма дала амулет за 30 золота.")
+            else:
+                f.slow_print("Нужно 30 золота.")
 
-    def show_forest(self):
-        f.click()
-        f.draw_location(self.canvas, "forest")
-        self.type_text("Тёмный лес. Слышен вой волка.")
-        self.clear_buttons()
-        self.make_button("В чащу", self.forest_thicket)
-        self.make_button("Собрать травы", self.forest_herbs)
-        self.make_button("К ручью", self.forest_stream)
-        self.make_button("К дубу", self.forest_oak)
-        self.make_button("Найти замок", self.forest_hill)
-        self.make_button("Назад", self.show_crossroads)
-
-    def forest_thicket(self):
-        f.click()
-        if not f.wolf_friend:
-            f.damage(random.randint(10, 25))
-            self.type_text(f"Волк напал! HP: {f.hp}")
-            self.clear_buttons()
-            self.make_button("Погладить волка", self.befriend_wolf)
-            self.make_button("Убежать", self.show_forest)
         else:
-            f.heal(20)
-            self.type_text("Волк рад тебе! +20 HP.")
-            self.clear_buttons()
-            self.make_button("Дальше", self.show_forest)
-        self.refresh()
-        self.check_death()
-
-    def befriend_wolf(self):
-        f.click()
-        f.wolf_friend = True
-        f.add_item("Друг-волк")
-        self.type_text("Волк стал твоим другом!")
-        self.clear_buttons()
-        self.make_button("Дальше", self.show_forest)
-        self.refresh()
-        self.check_end()
-
-    def forest_herbs(self):
-        f.click()
-        if not f.can_reward("herbs"):
-            self.type_text("Здесь больше нечего собирать.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_forest)
             return
-        f.mark_reward("herbs")
-        f.add_item("Трава")
-        f.heal(5)
-        f.add_xp(2)
-        self.type_text("Ты собрал травы. +5 HP, +2 опыта.")
-        self.clear_buttons()
-        self.make_button("Ещё", self.forest_herbs)
-        self.make_button("Назад", self.show_forest)
-        self.refresh()
 
-    def forest_stream(self):
-        f.click()
-        if not f.can_reward("stream"):
-            self.type_text("В ручье больше нет рыбы.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_forest)
+        input("Enter...")
+        if f.hp <= 0:
             return
-        f.mark_reward("stream")
-        f.add_item("Свежая рыба")
-        f.heal(10)
-        self.type_text("Ты поймал рыбу. +10 HP.")
-        self.clear_buttons()
-        self.make_button("Ещё", self.forest_stream)
-        self.make_button("Назад", self.show_forest)
-        self.refresh()
 
-    def forest_oak(self):
-        f.click()
-        if not f.can_reward("oak"):
-            self.type_text("Дупло пустое.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_forest)
-            return
-        f.mark_reward("oak")
-        f.add_gold(random.randint(30, 90))
-        self.type_text("В дупле дуба — золото!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_forest)
-        self.refresh()
 
-    def forest_hill(self):
-        f.click()
-        f.castle_found = True
-        f.add_xp(10)
-        self.type_text("С холма виден замок!")
-        self.clear_buttons()
-        self.make_button("В деревню", self.show_village)
-        self.make_button("Назад", self.show_forest)
-        self.refresh()
+def loc_village():
+    while True:
+        f.show_location("Деревня")
+        f.show_status()
+        print("=== ДЕРЕВНЯ ===")
+        print("1 - К замку")
+        print("2 - К троллю")
+        print("3 - Кузница")
+        print("4 - Таверна")
+        print("5 - Подвал старосты")
+        print("6 - Назад")
+        a = f.ask_choice(6)
 
-    # -------- деревня --------
+        if a == 1:
+            return "castle"
 
-    def show_village(self):
-        f.click()
-        f.draw_location(self.canvas, "village")
-        self.type_text("Деревня. В центре — замок на холме.")
-        self.clear_buttons()
-        self.make_button("К замку", self.show_castle)
-        self.make_button("К троллю", self.fight_troll)
-        self.make_button("Кузница", self.smithy)
-        self.make_button("Таверна", self.tavern)
-        self.make_button("Храм", self.temple)
-        self.make_button("Назад", self.show_crossroads)
+        elif a == 2:
+            if f.troll_defeated:
+                f.slow_print("Тролль уже побеждён.")
+            elif random.random() < 0.6:
+                f.add_gold(150)
+                f.troll_defeated = True
+                f.add_xp(40)
+                f.slow_print("Ты победил тролля! +150 золота.")
+            else:
+                f.damage(40)
+                f.slow_print("Тролль ранил тебя! -40 HP.")
 
-    def fight_troll(self):
-        f.click()
-        if f.troll_defeated:
-            self.type_text("Тролль уже побеждён.")
-        elif random.random() < 0.6:
-            f.add_gold(150)
-            f.troll_defeated = True
-            f.add_xp(40)
-            self.type_text("Ты победил тролля! +150 золота.")
+        elif a == 3:
+            if not f.can_reward("smithy"):
+                f.slow_print("Кузнец больше не кует для тебя.")
+            elif f.gold >= 100:
+                f.gold -= 100
+                f.mark_reward("smithy")
+                f.add_item("Меч")
+                f.slow_print("Кузнец дал тебе меч. -100 золота.")
+            else:
+                f.slow_print("Нужно 100 золота.")
+
+        elif a == 4:
+            f.heal(30)
+            f.day += 1
+            f.slow_print(f"Ты отдохнул. +30 HP. День {f.day}.")
+
+        elif a == 5:
+            f.explore_basement("дома старосты")
+
         else:
-            f.damage(40)
-            self.type_text("Тролль ранил тебя! -40 HP.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_village)
-        self.refresh()
-        self.check_death()
-        self.check_end()
+            return "cross"
 
-    def smithy(self):
-        f.click()
-        if not f.can_reward("smithy"):
-            self.type_text("Кузнец больше не кует для тебя.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_village)
-            return
-        if f.gold >= 100:
-            f.gold -= 100
-            f.mark_reward("smithy")
-            f.add_item("Меч")
-            self.type_text("Кузнец дал тебе меч. -100 золота.")
+        input("Enter...")
+        if f.hp <= 0:
+            return "die"
+
+
+def loc_castle():
+    while True:
+        f.show_location("Замок")
+        f.show_status()
+        print("=== ЗАМОК ===")
+        print("1 - К дракону")
+        print("2 - В тронный зал")
+        print("3 - Библиотека")
+        print("4 - Подвал замка")
+        print("5 - Назад")
+        a = f.ask_choice(5)
+
+        if a == 1:
+            return "dragon"
+        elif a == 2:
+            if not f.dragon_defeated:
+                f.slow_print("Сначала убей дракона!")
+            elif not f.princess_saved:
+                f.princess_saved = True
+                f.add_gold(500)
+                f.add_xp(50)
+                f.slow_print("Ты спас принцессу! +500 золота.")
+            else:
+                f.slow_print("Принцесса уже спасена.")
+        elif a == 3:
+            if not f.can_reward("library"):
+                f.slow_print("Ты уже прочитал все редкие книги.")
+            else:
+                f.mark_reward("library")
+                f.add_xp(20)
+                f.add_item("Книга")
+                f.slow_print("Прочитал книги. +20 опыта, книга.")
+        elif a == 4:
+            f.explore_basement("замка")
         else:
-            self.type_text("Нужно 100 золота.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_village)
-        self.refresh()
+            return "village"
+        input("Enter...")
 
-    def tavern(self):
-        f.click()
-        f.heal(30)
-        f.day += 1
-        self.type_text("Ты отдохнул. +30 HP, новый день.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_village)
-        self.refresh()
-        self.check_end()
 
-    def temple(self):
-        f.click()
-        if not f.can_reward("temple"):
-            self.type_text("Храм больше не даёт благословения.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_village)
+def loc_dragon():
+    while True:
+        f.show_location("Драконье логово")
+        f.show_status()
+        print("1 - Сражаться")
+        print("2 - Договориться")
+        print("3 - Убежать")
+        a = f.ask_choice(3)
+
+        if a == 1:
+            if f.dragon_defeated:
+                f.slow_print("Дракон уже повержен.")
+            elif random.random() < 0.5:
+                f.dragon_defeated = True
+                f.add_gold(1000)
+                f.add_xp(80)
+                f.slow_print("Дракон повержен! +1000 золота.")
+            else:
+                f.damage(50)
+                f.slow_print("Дракон обжёг тебя! -50 HP.")
+        elif a == 2:
+            if f.dragon_defeated:
+                f.slow_print("Дракон уже покинул логово.")
+            else:
+                f.add_gold(400)
+                f.dragon_defeated = True
+                f.slow_print("Дракон согласился на мир. +400 золота.")
+        else:
+            return "castle"
+
+        input("Enter...")
+        if f.hp <= 0:
+            return "die"
+
+
+def loc_cemetery():
+    while True:
+        f.show_location("Кладбище")
+        f.show_status()
+        print("1 - Склеп")
+        print("2 - Призраки")
+        print("3 - Назад")
+        a = f.ask_choice(3)
+        if a == 1:
+            if not f.can_reward("crypt"):
+                f.slow_print("Склеп пуст.")
+            else:
+                f.mark_reward("crypt")
+                g = random.randint(100, 400)
+                f.add_gold(g)
+                f.slow_print(f"В склепе — золото! +{g}.")
+        elif a == 2:
+            if f.undead_defeated:
+                f.slow_print("Призраки уже развеяны.")
+            elif random.random() < 0.6:
+                f.undead_defeated = True
+                f.add_xp(30)
+                f.slow_print("Ты развеял призраков! +30 опыта.")
+            else:
+                f.damage(30)
+                f.slow_print("Призраки ранили! -30 HP.")
+        else:
             return
-        f.mark_reward("temple")
+        input("Enter...")
+        if f.hp <= 0:
+            return
+
+
+def loc_ruins():
+    while True:
+        f.show_location("Руины")
+        f.show_status()
+        print("1 - Алтарь")
+        print("2 - Сокровищница")
+        print("3 - Назад")
+        a = f.ask_choice(3)
+        if a == 1:
+            if not f.can_reward("altar"):
+                f.slow_print("Алтарь уже не отвечает.")
+            else:
+                f.mark_reward("altar")
+                f.add_item("Магический артефакт")
+                f.add_xp(40)
+                f.slow_print("Ты нашёл артефакт! +40 опыта.")
+        elif a == 2:
+            if not f.can_reward("ruins_treasure"):
+                f.slow_print("Сокровищница руин пуста.")
+            else:
+                f.mark_reward("ruins_treasure")
+                g = random.randint(500, 1500)
+                f.add_gold(g)
+                f.slow_print(f"Ты нашёл сокровищницу руин! +{g}.")
+        else:
+            return
+        input("Enter...")
+
+
+def loc_fairy():
+    while True:
+        f.show_location("Лес фей")
+        f.show_status()
+        print("1 - Найти фею")
+        print("2 - Собрать пыльцу")
+        print("3 - Назад")
+        a = f.ask_choice(3)
+        if a == 1:
+            if f.fairy_friend:
+                f.slow_print("Фея уже подружилась с тобой.")
+            else:
+                f.fairy_friend = True
+                f.add_item("Дар феи")
+                f.add_xp(30)
+                f.slow_print("Фея стала твоим другом! +30 опыта.")
+        elif a == 2:
+            if not f.can_reward("fairy_dust"):
+                f.slow_print("Пыльцы больше нет.")
+            else:
+                f.mark_reward("fairy_dust")
+                f.add_item("Волшебная пыльца")
+                f.heal(10)
+                f.slow_print("Ты собрал пыльцу. +10 HP.")
+        else:
+            return
+        input("Enter...")
+
+
+def loc_unicorns():
+    while True:
+        f.show_location("Долина единорогов")
+        f.show_status()
+        print("1 - Подружиться")
+        print("2 - Взять рог")
+        print("3 - Назад")
+        a = f.ask_choice(3)
+        if a == 1:
+            if f.unicorn_friend:
+                f.slow_print("Единорог уже твой друг.")
+            else:
+                f.unicorn_friend = True
+                f.add_xp(30)
+                f.slow_print("Единорог стал твоим другом!")
+        elif a == 2:
+            if not f.can_reward("unicorn_horn"):
+                f.slow_print("Второй рог брать нельзя.")
+            else:
+                f.mark_reward("unicorn_horn")
+                f.add_item("Рог единорога")
+                f.add_gold(300)
+                f.slow_print("Ты взял рог. +300 золота.")
+        else:
+            return
+        input("Enter...")
+
+
+# ==========================================
+# ИНВЕНТАРЬ
+# ==========================================
+
+def show_inventory():
+    f.show_status()
+    if not f.inventory:
+        f.slow_print("Инвентарь пуст.")
+        input("Enter...")
+        return
+
+    print("Что использовать?")
+    for i, item in enumerate(f.inventory, 1):
+        print(f"{i} - {item}")
+    print(f"{len(f.inventory)+1} - отмена")
+    a = f.ask_choice(len(f.inventory) + 1)
+    if a == len(f.inventory) + 1:
+        return
+
+    item = f.inventory[a - 1]
+
+    if item in ("Трава", "Свежая рыба", "Еда", "Зелье лечения"):
         f.heal(20)
-        f.add_item("Святая вода")
-        self.type_text("Ты помолился. +20 HP, святая вода.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_village)
-        self.refresh()
-
-    # -------- замок --------
-
-    def show_castle(self):
-        f.click()
-        f.draw_location(self.canvas, "castle")
-        self.type_text("Замок. Стражник: «Спаси принцессу!»")
-        self.clear_buttons()
-        self.make_button("К дракону", self.show_dragon)
-        self.make_button("В тронный зал", self.throne_room)
-        self.make_button("Библиотека", self.library)
-        self.make_button("Подвал замка", self.castle_basement)
-        self.make_button("Назад", self.show_village)
-
-    def throne_room(self):
-        f.click()
-        if not f.dragon_defeated:
-            self.type_text("Сначала убей дракона!")
-        elif not f.princess_saved:
-            f.princess_saved = True
-            f.add_gold(500)
-            f.add_xp(50)
-            self.type_text("Ты спас принцессу! +500 золота.")
+        f.inventory.remove(item)
+        f.slow_print("Ты использовал " + item + ". +20 HP.")
+    elif item == "ШКОЛА":
+        f.inventory.remove(item)
+        f.add_item("10000 объяснительных")
+        f.slow_print("Ты обменял ШКОЛУ на 10000 объяснительных!")
+    elif item == "10000 объяснительных":
+        if not f.can_reward("recycle"):
+            f.slow_print("Макулатурщик сказал: «Больше не принимаю».")
         else:
-            self.type_text("Принцесса уже спасена.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_castle)
-        self.refresh()
-        self.check_end()
+            f.mark_reward("recycle")
+            f.inventory.remove(item)
+            f.add_gold(100)
+            f.slow_print("Сдал 10000 объяснительных. +100 золота.")
+    elif item == "Странный ключ":
+        f.slow_print("Найди запертую дверь в подвале.")
+    else:
+        f.slow_print("Ты не знаешь, как использовать " + item)
 
-    def library(self):
-        f.click()
-        if not f.can_reward("library"):
-            self.type_text("Ты уже прочитал все редкие книги.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_castle)
+
+# ==========================================
+# ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
+# ==========================================
+
+def play_session(player_name):
+    f.slow_print(f"Ты просыпаешься на развилке лесной тропы, {player_name}.")
+    f.slow_print("Вокруг тёмный лес. Где-то воет волк.")
+    input("Enter...")
+
+    while True:
+        ending = e.check_endings()
+        if ending:
+            return show_ending_screen(ending)
+
+        if f.hp <= 0:
+            return show_ending_screen("lose")
+
+        f.show_location("Развилка")
+        f.show_status()
+        print("=== РАЗВИЛКА ===")
+        print("1 - Лес")
+        print("2 - Деревня")
+        print("3 - Болото")
+        print("4 - Кладбище")
+        print("5 - Руины")
+        print("6 - Лес фей")
+        print("7 - Долина единорогов")
+        print("8 - Инвентарь")
+        print("9 - Прогресс концовок")
+        print("10 - Отдохнуть")
+        a = f.ask_choice(10)
+
+        if a == 1:
+            loc_forest()
+        elif a == 2:
+            nxt = loc_village()
+            if nxt == "castle":
+                nxt2 = loc_castle()
+                if nxt2 == "dragon":
+                    loc_dragon()
+        elif a == 3:
+            loc_swamp()
+        elif a == 4:
+            loc_cemetery()
+        elif a == 5:
+            loc_ruins()
+        elif a == 6:
+            loc_fairy()
+        elif a == 7:
+            loc_unicorns()
+        elif a == 8:
+            show_inventory()
+            input("Enter...")
+        elif a == 9:
+            e.show_progress()
+        elif a == 10:
+            f.heal(25)
+            f.day += 1
+            f.slow_print(f"Ты отдохнул. +25 HP. День {f.day}.")
+            input("Enter...")
+
+
+# ==========================================
+# ГЛАВНЫЙ ЦИКЛ
+# ==========================================
+
+def main():
+    print("================================")
+    print("       ЛЕСНОЕ ПРИКЛЮЧЕНИЕ")
+    print("================================")
+
+    current_name = None
+    current_bonus = None
+
+    while True:
+        if current_name is None:
+            f.reset_state()
+            current_name, current_bonus = choose_name()
+        else:
+            f.reset_state()
+            print()
+            print("Ты снова играешь за " + current_name.upper())
+            input("Enter...")
+
+        apply_bonus(current_bonus)
+        answer = play_session(current_name)
+
+        if answer == 1:
+            continue
+        elif answer == 2:
+            current_name = None
+            current_bonus = None
+        else:
+            print("Спасибо за игру!")
             return
-        f.mark_reward("library")
-        f.add_xp(20)
-        f.add_item("Книга")
-        self.type_text("Прочитал книги. +20 опыта, книга.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_castle)
-        self.refresh()
-
-    def castle_basement(self):
-        f.click()
-        if not f.can_reward("castle_basement"):
-            self.type_text("Подвал замка обыскан.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_castle)
-            return
-        f.mark_reward("castle_basement")
-        f.add_gold(random.randint(200, 600))
-        self.type_text("В подвале замка — сундук с золотом.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_castle)
-        self.refresh()
-        self.check_end()
-
-    def show_dragon(self):
-        f.click()
-        f.draw_location(self.canvas, "dragon")
-        self.type_text("Логово дракона. Он смотрит на тебя.")
-        self.clear_buttons()
-        self.make_button("Сражаться", self.fight_dragon)
-        self.make_button("Договориться", self.dragon_talk)
-        self.make_button("Убежать", self.show_castle)
-
-    def fight_dragon(self):
-        f.click()
-        if f.dragon_defeated:
-            self.type_text("Дракон уже повержен.")
-        elif random.random() < 0.5:
-            f.dragon_defeated = True
-            f.add_gold(1000)
-            f.add_xp(80)
-            self.type_text("Дракон повержен! +1000 золота.")
-        else:
-            f.damage(50)
-            self.type_text("Дракон обжёг тебя! -50 HP.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_castle)
-        self.refresh()
-        self.check_death()
-        self.check_end()
-
-    def dragon_talk(self):
-        f.click()
-        if f.dragon_defeated:
-            self.type_text("Дракон уже покинул логово.")
-        else:
-            f.add_gold(400)
-            f.dragon_defeated = True
-            self.type_text("Дракон согласился на мир. +400 золота.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_castle)
-        self.refresh()
-        self.check_end()
-
-    # -------- болото --------
-
-    def show_swamp(self):
-        f.click()
-        f.draw_location(self.canvas, "swamp")
-        self.type_text("Болото. Пахнет сыростью.")
-        self.clear_buttons()
-        self.make_button("Искать клад", self.swamp_treasure)
-        self.make_button("К хижине", self.swamp_hut)
-        self.make_button("Назад", self.show_crossroads)
-
-    def swamp_treasure(self):
-        f.click()
-        if not f.can_reward("swamp"):
-            self.type_text("Болото больше ничего не отдаёт.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_swamp)
-            return
-        f.mark_reward("swamp")
-        roll = random.random()
-        if roll < 0.2 and not f.strange_key:
-            f.strange_key = True
-            f.add_item("Странный ключ")
-            self.type_text("Ты нашёл СТРАННЫЙ КЛЮЧ!")
-        elif roll < 0.6:
-            gain = random.randint(30, 100)
-            f.add_gold(gain)
-            self.type_text(f"Ты нашёл золото! +{gain}.")
-        else:
-            f.damage(random.randint(5, 15))
-            self.type_text("Змея укусила! -HP.")
-        self.clear_buttons()
-        self.make_button("Ещё", self.swamp_treasure)
-        self.make_button("Назад", self.show_swamp)
-        self.refresh()
-        self.check_death()
-        self.check_end()
-
-    def swamp_hut(self):
-        f.click()
-        if not f.can_reward("swamp_hut"):
-            self.type_text("Ведьма больше ничего не даёт.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_swamp)
-            return
-        if f.gold >= 30:
-            f.gold -= 30
-            f.mark_reward("swamp_hut")
-            f.add_item("Болотный амулет")
-            self.type_text("Ведьма дала амулет за 30 золота.")
-        else:
-            self.type_text("Нужно 30 золота.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_swamp)
-        self.refresh()
-
-    # -------- горы --------
-
-    def show_mountains(self):
-        f.click()
-        f.draw_location(self.canvas, "mountains")
-        self.type_text("Горы. Ветер, снег, где-то блестит золото.")
-        self.clear_buttons()
-        self.make_button("Вершина", self.mountain_top)
-        self.make_button("Пещера", self.mountain_cave)
-        self.make_button("Назад", self.show_crossroads)
-
-    def mountain_top(self):
-        f.click()
-        if not f.can_reward("mountain_top"):
-            self.type_text("Ты уже покорил эту вершину.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_mountains)
-            return
-        f.mark_reward("mountain_top")
-        f.add_xp(20)
-        f.add_gold(100)
-        self.type_text("Ты взошёл на вершину. +100 золота, +20 опыта.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_mountains)
-        self.refresh()
-
-    def mountain_cave(self):
-        f.click()
-        if not f.can_reward("mountain_cave"):
-            self.type_text("Пещера пуста.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_mountains)
-            return
-        f.mark_reward("mountain_cave")
-        f.add_gold(random.randint(200, 800))
-        self.type_text("В пещере ты нашёл сокровища!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_mountains)
-        self.refresh()
-        self.check_end()
-
-    # -------- море --------
-
-    def show_sea(self):
-        f.click()
-        f.draw_location(self.canvas, "sea")
-        self.type_text("Море. Шум волн, крики чаек.")
-        self.clear_buttons()
-        self.make_button("Поплавать", self.sea_swim)
-        self.make_button("Сокровища", self.sea_treasure)
-        self.make_button("Назад", self.show_crossroads)
-
-    def sea_swim(self):
-        f.click()
-        if not f.can_reward("sea_swim"):
-            self.type_text("Ты уже накупался вдоволь.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_sea)
-            return
-        f.mark_reward("sea_swim")
-        f.heal(15)
-        self.type_text("Ты поплавал. +15 HP.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_sea)
-        self.refresh()
-
-    def sea_treasure(self):
-        f.click()
-        if not f.can_reward("sea_treasure"):
-            self.type_text("Больше сокровищ на дне нет.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_sea)
-            return
-        f.mark_reward("sea_treasure")
-        f.add_gold(random.randint(200, 600))
-        self.type_text("Ты нашёл затонувшее сокровище!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_sea)
-        self.refresh()
-        self.check_end()
-
-    # -------- кладбище --------
-
-    def show_cemetery(self):
-        f.click()
-        f.draw_location(self.canvas, "cemetery")
-        self.type_text("Кладбище. Тихо. Только вороны.")
-        self.clear_buttons()
-        self.make_button("Склеп", self.crypt)
-        self.make_button("Призраки", self.ghosts)
-        self.make_button("Назад", self.show_crossroads)
-
-    def crypt(self):
-        f.click()
-        if not f.can_reward("crypt"):
-            self.type_text("Склеп пуст.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_cemetery)
-            return
-        f.mark_reward("crypt")
-        f.add_gold(random.randint(100, 400))
-        self.type_text("В склепе — золото.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_cemetery)
-        self.refresh()
-
-    def ghosts(self):
-        f.click()
-        if f.undead_defeated:
-            self.type_text("Призраки уже развеяны.")
-        elif random.random() < 0.6:
-            f.undead_defeated = True
-            f.add_xp(30)
-            self.type_text("Ты развеял призраков! +30 опыта.")
-        else:
-            f.damage(30)
-            self.type_text("Призраки ранили! -30 HP.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_cemetery)
-        self.refresh()
-        self.check_death()
-        self.check_end()
-
-    # -------- руины --------
-
-    def show_ruins(self):
-        f.click()
-        f.draw_location(self.canvas, "ruins")
-        self.type_text("Древние руины. Пахнет магией.")
-        self.clear_buttons()
-        self.make_button("Алтарь", self.altar)
-        self.make_button("Сокровищница", self.ruins_treasure)
-        self.make_button("Назад", self.show_crossroads)
-
-    def altar(self):
-        f.click()
-        if not f.can_reward("altar"):
-            self.type_text("Алтарь уже не отвечает.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_ruins)
-            return
-        f.mark_reward("altar")
-        f.add_item("Магический артефакт")
-        f.add_xp(40)
-        self.type_text("Ты нашёл артефакт! +40 опыта.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_ruins)
-        self.refresh()
-
-    def ruins_treasure(self):
-        f.click()
-        if not f.can_reward("ruins_treasure"):
-            self.type_text("Сокровищница руин пуста.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_ruins)
-            return
-        f.mark_reward("ruins_treasure")
-        f.add_gold(random.randint(500, 1500))
-        self.type_text("Ты нашёл сокровищницу руин!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_ruins)
-        self.refresh()
-        self.check_end()
-
-    # -------- фея --------
-
-    def show_fairy(self):
-        f.click()
-        f.draw_location(self.canvas, "forest")
-        self.type_text("Лес фей. В воздухе блестит пыльца.")
-        self.clear_buttons()
-        self.make_button("Найти фею", self.find_fairy)
-        self.make_button("Собрать пыльцу", self.fairy_dust)
-        self.make_button("Назад", self.show_crossroads)
-
-    def find_fairy(self):
-        f.click()
-        if f.fairy_friend:
-            self.type_text("Фея уже подружилась с тобой.")
-        else:
-            f.fairy_friend = True
-            f.add_item("Дар феи")
-            f.add_xp(30)
-            self.type_text("Фея стала твоим другом! +30 опыта.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_fairy)
-        self.refresh()
-        self.check_end()
-
-    def fairy_dust(self):
-        f.click()
-        if not f.can_reward("fairy_dust"):
-            self.type_text("Пыльцы больше нет.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_fairy)
-            return
-        f.mark_reward("fairy_dust")
-        f.add_item("Волшебная пыльца")
-        f.heal(10)
-        self.type_text("Ты собрал пыльцу. +10 HP.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_fairy)
-        self.refresh()
-
-    # -------- единороги --------
-
-    def show_unicorns(self):
-        f.click()
-        f.draw_location(self.canvas, "forest")
-        self.type_text("Долина единорогов. Радуга и тишина.")
-        self.clear_buttons()
-        self.make_button("Подружиться", self.befriend_unicorn)
-        self.make_button("Взять рог", self.unicorn_horn)
-        self.make_button("Назад", self.show_crossroads)
-
-    def befriend_unicorn(self):
-        f.click()
-        if f.unicorn_friend:
-            self.type_text("Единорог уже твой друг.")
-        else:
-            f.unicorn_friend = True
-            f.add_xp(30)
-            self.type_text("Единорог стал твоим другом!")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_unicorns)
-        self.refresh()
-        self.check_end()
-
-    def unicorn_horn(self):
-        f.click()
-        if not f.can_reward("unicorn_horn"):
-            self.type_text("Второй рог брать нельзя.")
-            self.clear_buttons()
-            self.make_button("Назад", self.show_unicorns)
-            return
-        f.mark_reward("unicorn_horn")
-        f.add_item("Рог единорога")
-        f.add_gold(300)
-        self.type_text("Ты взял рог. +300 золота.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_unicorns)
-        self.refresh()
-        self.check_end()
-
-    # -------- отдых / инвентарь --------
-
-    def rest(self):
-        f.click()
-        f.heal(25)
-        f.day += 1
-        self.type_text(f"Ты отдохнул. +25 HP. День {f.day}.")
-        self.clear_buttons()
-        self.make_button("Назад", self.show_crossroads)
-        self.refresh()
-        self.check_end()
-
-    def show_inventory(self):
-        f.click()
-        f.draw_location(self.canvas, "forest")
-        if f.inventory:
-            self.type_text("Инвентарь:\n" +
-                           "\n".join("• " + x for x in f.inventory))
-        else:
-            self.type_text("Инвентарь пуст.")
-
-        self.clear_buttons()
-
-        if "ШКОЛА" in f.inventory:
-            self.make_button("Обменять ШКОЛУ", self.exchange_school)
-        if "10000 объяснительных" in f.inventory:
-            self.make_button("Сдать в макулатуру", self.recycle_notes)
-
-        self.make_button("Прогресс", self.show_progress)
-        self.make_button("Сменить персонажа", self.show_name_choice)
-        self.make_button("Назад", self.show_crossroads)
-
-    # -------- прогресс концовок + «Ответить» --------
-
-    def show_progress(self):
-        f.click()
-        self.type_text(e.show_progress())
-        self.clear_buttons()
-        self.make_button("Ответить", self.progress_reply)
-        self.make_button("Назад", self.show_inventory)
-
-    def progress_reply(self):
-        f.click()
-        done = []
-        left = []
-
-        if f.escape_ready and f.strange_key:
-            done.append("Побег в реальный мир")
-        else:
-            left.append("Побег: нужен Странный ключ и открытая дверь")
-
-        if f.dragon_defeated and f.princess_saved:
-            done.append("Спаситель королевства")
-        else:
-            left.append("Спаситель: убить дракона и спасти принцессу")
-
-        if f.wolf_friend and f.fairy_friend and f.unicorn_friend:
-            done.append("Друг леса")
-        else:
-            left.append("Друг леса: подружиться с волком, феей и единорогом")
-
-        if f.level >= 5 and f.gold >= 3000 \
-                and f.dragon_defeated and f.undead_defeated and f.troll_defeated:
-            done.append("Легендарный герой")
-        else:
-            left.append("Легендарный герой: ур.5+, 3000 золота, "
-                        "дракон + призраки + тролль")
-
-        if f.undead_defeated and f.troll_defeated and f.gold >= 1500:
-            done.append("Лорд подземелий")
-        else:
-            left.append("Лорд подземелий: призраки + тролль, 1500 золота")
-
-        if f.gold >= 500 and f.day >= 10 and not f.dragon_defeated:
-            done.append("Мирный житель")
-        else:
-            left.append("Мирный житель: 500 золота, 10 дней, дракон не убит")
-
-        text = "ДОСТИГНУТО:\n"
-        if done:
-            text += "\n".join("✓ " + x for x in done)
-        else:
-            text += "  пока ничего"
-
-        text += "\n\nОСТАЛОСЬ:\n"
-        if left:
-            text += "\n".join("• " + x for x in left)
-        else:
-            text += "  всё открыто!"
-
-        self.type_text(text)
-        self.clear_buttons()
-        self.make_button("Назад к прогрессу", self.show_progress)
-        self.make_button("В меню", self.show_crossroads)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    Quest(root)
-    root.mainloop()
+    main()

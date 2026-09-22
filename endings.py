@@ -34,6 +34,9 @@
 
 
 
+
+
+
 import functions as f
 
 
@@ -83,29 +86,28 @@ def ending_text(which):
 
 
 def show_progress():
-    lines = ["ПРОГРЕСС КОНЦОВОК", ""]
-    lines.append("1. Побег:")
-    lines.append("   ключ " + ("v" if f.strange_key else "x") +
-                 "  дверь " + ("v" if f.escape_ready else "x"))
-    lines.append("2. Спаситель:")
-    lines.append("   дракон " + ("v" if f.dragon_defeated else "x") +
-                 "  принцесса " + ("v" if f.princess_saved else "x"))
-    lines.append("3. Друг леса:")
-    lines.append("   волк " + ("v" if f.wolf_friend else "x") +
-                 "  фея " + ("v" if f.fairy_friend else "x") +
-                 "  единорог " + ("v" if f.unicorn_friend else "x"))
-    lines.append("4. Легендарный герой:")
-    lines.append("   ур." + str(f.level) +
-                 "  зол. " + str(f.gold) +
-                 "  дракон " + ("v" if f.dragon_defeated else "x") +
-                 "  призраки " + ("v" if f.undead_defeated else "x") +
-                 "  тролль " + ("v" if f.troll_defeated else "x"))
-    lines.append("5. Лорд подземелий:")
-    lines.append("   призраки " + ("v" if f.undead_defeated else "x") +
-                 "  тролль " + ("v" if f.troll_defeated else "x") +
-                 "  зол. " + str(f.gold))
-    lines.append("6. Мирный житель:")
-    lines.append("   день " + str(f.day) +
-                 "  зол. " + str(f.gold) +
-                 "  дракон " + ("x" if not f.dragon_defeated else "v"))
-    return "\n".join(lines)
+    print()
+    print("=== ПРОГРЕСС КОНЦОВОК ===")
+    print("1. Побег:")
+    print("   ключ " + ("v" if f.strange_key else "x") +
+          "  дверь " + ("v" if f.escape_ready else "x"))
+    print("2. Спаситель:")
+    print("   дракон " + ("v" if f.dragon_defeated else "x") +
+          "  принцесса " + ("v" if f.princess_saved else "x"))
+    print("3. Друг леса:")
+    print("   волк " + ("v" if f.wolf_friend else "x") +
+          "  фея " + ("v" if f.fairy_friend else "x") +
+          "  единорог " + ("v" if f.unicorn_friend else "x"))
+    print("4. Легендарный герой:")
+    print("   ур." + str(f.level) + "  зол." + str(f.gold) +
+          "  дракон " + ("v" if f.dragon_defeated else "x") +
+          "  призраки " + ("v" if f.undead_defeated else "x") +
+          "  тролль " + ("v" if f.troll_defeated else "x"))
+    print("5. Лорд подземелий:")
+    print("   призраки " + ("v" if f.undead_defeated else "x") +
+          "  тролль " + ("v" if f.troll_defeated else "x") +
+          "  зол." + str(f.gold))
+    print("6. Мирный житель:")
+    print("   день " + str(f.day) + "  зол." + str(f.gold) +
+          "  дракон " + ("x" if not f.dragon_defeated else "v"))
+    input("Enter...")
