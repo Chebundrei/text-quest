@@ -23,27 +23,11 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 import random
 import time
 import sys
 import os
 
-
-# ==========================================
-# СОСТОЯНИЕ
-# ==========================================
 
 inventory = []
 hp = 100
@@ -81,7 +65,6 @@ def reset_state():
     day = 1
     xp = 0
     level = 1
-
     castle_found = False
     wolf_friend = False
     fairy_friend = False
@@ -92,7 +75,6 @@ def reset_state():
     princess_saved = False
     strange_key = False
     escape_ready = False
-
     reward_counts = {}
 
 
@@ -104,15 +86,10 @@ def mark_reward(key):
     reward_counts[key] = reward_counts.get(key, 0) + 1
 
 
-# ==========================================
-# ЗВУК И ПАУЗЫ
-# ==========================================
-
 def sound(name):
     try:
         import winsound
     except ImportError:
-        time.sleep(0.05)
         return
     paths = {
         "click": r"C:\Users\cl\Desktop\soundds\click.wav",
@@ -137,14 +114,6 @@ def slow_print(text, delay=0.02):
         time.sleep(delay)
     print()
 
-
-def pause(seconds=1.0):
-    time.sleep(seconds)
-
-
-# ==========================================
-# ASCII-ГРАФИКА
-# ==========================================
 
 ASCII_ART = {
 "Развилка": r"""
@@ -183,23 +152,6 @@ ASCII_ART = {
  |   ||   ||   ||   |
  |___||___||___||___|
       БОЛОТО
-""",
-"Горы": r"""
-        /\
-       /  \
-      /    \
-     /  /\  \
-   /__/____\__\
-   |    /\    |
-   |__/____\__|
-      ГОРЫ
-""",
-"Море": r"""
-~~~~~~~~~~~~~~~~~~~~~~~
-  ~~~ ~~~ ~~~ ~~~ ~~~
- ~~~~~~~~ ~~~~~~~~
-      ~~~~~~~~
-        МОРЕ
 """,
 "Замок": r"""
         |\
@@ -246,17 +198,8 @@ ASCII_ART = {
      |_____|
    ДОЛИНА ЕДИНОРОГОВ
 """,
-"Победа": r"""
-   *  *  *  *  *
-  *  ПОБЕДА  *
-   *  *  *  *  *
-""",
-"Поражение": r"""
-   _______________
-  |               |
-  |  ТЫ ПРОИГРАЛ  |
-  |_______________|
-"""
+"Победа": "\n   *** ПОБЕДА! ***\n",
+"Поражение": "\n   --- ТЫ ПРОИГРАЛ ---\n",
 }
 
 
@@ -265,10 +208,6 @@ def show_location(name):
     if art:
         print(art)
 
-
-# ==========================================
-# СТАТУС
-# ==========================================
 
 def show_status():
     bar = int(hp / max_hp * 20)
@@ -284,10 +223,6 @@ def show_status():
         print("Инвентарь: —")
     print("============================")
 
-
-# ==========================================
-# ДЕЙСТВИЯ
-# ==========================================
 
 def add_item(item):
     inventory.append(item)
@@ -323,10 +258,6 @@ def damage(amount):
     return hp <= 0
 
 
-# ==========================================
-# ВВОД
-# ==========================================
-
 def ask_choice(max_choice):
     while True:
         s = input("Твой выбор: ").strip()
@@ -345,21 +276,6 @@ def ask_choice(max_choice):
         sound("error")
         print(f"Введи число от 1 до {max_choice}")
 
-
-def ask_yes_no(prompt):
-    while True:
-        s = input(prompt).strip().lower()
-        if s in ("д", "да", "y", "yes"):
-            return True
-        if s in ("н", "нет", "n", "no"):
-            return False
-        sound("error")
-        print("Ответь 'д' или 'н'.")
-
-
-# ==========================================
-# ПОДВАЛ
-# ==========================================
 
 def explore_basement(place_name):
     global strange_key, escape_ready

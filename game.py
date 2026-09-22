@@ -23,19 +23,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 import random
 
 import functions as f
@@ -76,10 +63,6 @@ REPLIES = {
 }
 
 
-# ==========================================
-# ВЫБОР ИМЕНИ
-# ==========================================
-
 def choose_name():
     print()
     print("=====================================")
@@ -100,15 +83,13 @@ def choose_name():
             f.sound("error")
             print("Имя не может быть пустым.")
         name = custom
-        phrase = f"Другoe — ок. Идём в лес, {custom}!"
+        phrase = "Другое — ок. Идём в лес, " + custom + "!"
     else:
         name = chosen
 
     print()
-    f.slow_print(f"Итак, тебя зовут {name}.")
+    f.slow_print("Итак, тебя зовут " + name + ".")
     f.slow_print(phrase)
-
-    f.pause(1.0)
     return name, bonus
 
 
@@ -123,10 +104,6 @@ def apply_bonus(bonus):
     for it in bonus.get("items", []):
         f.add_item(it)
 
-
-# ==========================================
-# КОНЦОВКИ
-# ==========================================
 
 def show_ending_screen(kind):
     if kind == "lose":
@@ -526,7 +503,6 @@ def show_inventory():
     f.show_status()
     if not f.inventory:
         f.slow_print("Инвентарь пуст.")
-        input("Enter...")
         return
 
     print("Что использовать?")
@@ -562,11 +538,11 @@ def show_inventory():
 
 
 # ==========================================
-# ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
+# ГЛАВНЫЙ ЦИКЛ
 # ==========================================
 
 def play_session(player_name):
-    f.slow_print(f"Ты просыпаешься на развилке лесной тропы, {player_name}.")
+    f.slow_print("Ты просыпаешься на развилке лесной тропы, " + player_name + ".")
     f.slow_print("Вокруг тёмный лес. Где-то воет волк.")
     input("Enter...")
 
@@ -622,10 +598,6 @@ def play_session(player_name):
             f.slow_print(f"Ты отдохнул. +25 HP. День {f.day}.")
             input("Enter...")
 
-
-# ==========================================
-# ГЛАВНЫЙ ЦИКЛ
-# ==========================================
 
 def main():
     print("================================")
