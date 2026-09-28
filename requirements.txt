@@ -6,4 +6,6 @@ import os
 import functions as f
 import random
 import functions as f
-import endings as e
+import endings as e 
+
+каждый код зависит от некоторых переменных другово, а стороние библиотек тут нет
