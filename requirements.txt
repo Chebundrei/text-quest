@@ -1,0 +1,9 @@
+библиоткеи которые используются:
+import random
+import time
+import sys
+import os
+import functions as f
+import random
+import functions as f
+import endings as e
